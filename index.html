@@ -599,21 +599,26 @@
         }
 
         function eliminarObservacion(id) {
-            if (confirm("¿Seguro de eliminar este reporte de observación?")) {
+            if (confirm("¿Desea eliminar este reporte/observación?")) {
                 db.observaciones = db.observaciones.filter(o => o.id !== id);
                 guardarBD();
             }
         }
 
-        function setFiltro(tipo) {
-            filtroActual = tipo;
-            const botones = ['btnFiltroTodos', 'btnFiltroAmarilla', 'btnFiltroBlanca', 'btnFiltroBaja'];
+        // --- FILTROS DE BÚSQUEDA ---
+        function setFiltro(filtro) {
+            filtroActual = filtro;
+            const botones = ['Todos', 'Amarilla', 'Blanca', 'Baja'];
             botones.forEach(b => {
-                const btn = document.getElementById(b);
-                if (b === `btnFiltro${tipo}`) {
-                    btn.className = "px-3 py-1 text-xs font-bold rounded-lg bg-industrial-500 text-white";
-                } else {
-                    btn.className = "px-3 py-1 text-xs font-bold rounded-lg bg-gray-800 text-gray-300";
+                const btn = document.getElementById(`btnFiltro${b}`);
+                if (btn) {
+                    if (b === filtro) {
+                        btn.classList.replace('bg-gray-800', 'bg-industrial-500');
+                        btn.classList.replace('text-gray-300', 'text-white');
+                    } else {
+                        btn.classList.replace('bg-industrial-500', 'bg-gray-800');
+                        btn.classList.replace('text-white', 'text-gray-300');
+                    }
                 }
             });
             renderTodo();
@@ -623,391 +628,265 @@
             renderTodo();
         }
 
-        // --- SISTEMA DE ALERTAS TEMPRANAS ---
-        function calcularAlertas(u) {
-            let alerts = [];
-            const hoy = new Date();
-            const diasMargen = 15;
-
-            const chequearFecha = (fechaStr, nombreDoc) => {
-                if (!fechaStr) return;
-                const f = new Date(fechaStr);
-                const diffTime = f - hoy;
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                if (diffDays < 0) {
-                    alerts.push({ tipo: 'error', desc: `${nombreDoc} VENCIDO hace ${Math.abs(diffDays)} días` });
-                } else if (diffDays <= diasMargen) {
-                    alerts.push({ tipo: 'warning', desc: `${nombreDoc} vence en ${diffDays} días (${fechaStr})` });
-                }
-            };
-
-            chequearFecha(u.soat, 'SOAT');
-            chequearFecha(u.citv, 'CITV');
-            chequearFecha(u.seguro, 'SEGURO');
-
-            const margenMto = u.tipoMedicion === 'Horometro' ? 25 : 500;
-            const faltante = u.valorProximo - u.valorActual;
-
-            if (u.valorProximo > 0) {
-                if (faltante <= 0) {
-                    alerts.push({ tipo: 'error', desc: `MANTENIMIENTO VENCIDO (Exceso de ${Math.abs(faltante)} ${u.tipoMedicion === 'Horometro' ? 'Hrs' : 'Km'})` });
-                } else if (faltante <= margenMto) {
-                    alerts.push({ tipo: 'warning', desc: `Mantenimiento próximo: falta ${faltante} ${u.tipoMedicion === 'Horometro' ? 'Hrs' : 'Km'}` });
-                }
-            }
-
-            return alerts;
-        }
-
-        // --- RENDERS DINÁMICOS ---
+        // --- RENDERIZADO PRINCIPAL ---
         function renderTodo() {
-            renderOperadores();
-            renderSelectores();
+            renderListasFormularios();
             renderAlertasYUnidades();
             renderObservaciones();
         }
 
-        function renderOperadores() {
-            const contenedor = document.getElementById('listaOperadores');
-            if (!contenedor) return;
-            if (db.operadores.length === 0) {
-                contenedor.innerHTML = '<p class="text-xs text-gray-400">Sin operadores registrados.</p>';
-                return;
-            }
-            contenedor.innerHTML = db.operadores.map(op => {
-                // Modificado para mapear la rotación de múltiples IDs
-                const asignados = db.unidades.filter(u => u.operadoresIds && u.operadoresIds.includes(op.id)).map(u => u.codigo);
-                return `
-                    <div class="flex items-center justify-between p-2 border-b text-xs hover:bg-gray-50">
-                        <div>
-                            <p class="font-bold text-gray-800">${op.nombre}</p>
-                            <p class="text-[10px] text-gray-500">Licencia: ${op.licencia}</p>
-                            ${asignados.length > 0 ? `<span class="bg-gray-100 text-gray-800 text-[9px] px-1 rounded font-mono">Cargo: ${asignados.join(', ')}</span>` : '<span class="text-[9px] text-red-500 italic">Sin equipos</span>'}
-                        </div>
-                        <button onclick="eliminarOperador('${op.id}')" class="text-red-500 hover:text-red-700 ml-2">
-                            <i class="fa-solid fa-trash"></i>
-                        </button>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        function renderSelectores() {
-            // Render Checkbox list de selección múltiple de operadores para unidades
-            const contenedorCheckboxes = document.getElementById('listaOperadoresCheckbox');
-            if (contenedorCheckboxes) {
+        function renderListasFormularios() {
+            // Checkboxes de operadores en el formulario de unidades
+            const containerCheckboxes = document.getElementById('listaOperadoresCheckbox');
+            if (containerCheckboxes) {
                 if (db.operadores.length === 0) {
-                    contenedorCheckboxes.innerHTML = '<p class="text-xs text-gray-400 italic">Registre operadores en el panel superior primero.</p>';
+                    containerCheckboxes.innerHTML = '<p class="text-[11px] text-gray-400">No hay operadores registrados.</p>';
                 } else {
-                    contenedorCheckboxes.innerHTML = db.operadores.map(op => `
-                        <label class="flex items-center gap-2 text-xs text-gray-700 hover:bg-gray-100 p-1 rounded cursor-pointer">
-                            <input type="checkbox" name="operadoresAsignados" value="${op.id}" class="accent-industrial-500 rounded text-industrial-500">
-                            <span>${op.nombre}</span>
+                    containerCheckboxes.innerHTML = db.operadores.map(op => `
+                        <label class="flex items-center gap-2 text-xs text-gray-700 cursor-pointer">
+                            <input type="checkbox" name="operadoresAsignados" value="${op.id}" class="accent-industrial-500">
+                            <span class="font-semibold">${op.nombre} (${op.licencia})</span>
                         </label>
                     `).join('');
                 }
             }
 
-            // Filtrar las unidades disponibles para reportar observaciones según rol
-            const selObsUnidad = document.getElementById('obsUnidad');
-            let unidadesPermitidas = db.unidades;
-            if (sesion.rol === 'operador') {
-                unidadesPermitidas = db.unidades.filter(u => u.codigo === sesion.unidadAcceso);
+            // Lista lateral de operadores con botón eliminar
+            const listaOp = document.getElementById('listaOperadores');
+            if (listaOp) {
+                listaOp.innerHTML = db.operadores.map(op => `
+                    <div class="flex justify-between items-center text-xs p-2 bg-gray-50 rounded-lg border mb-1">
+                        <div>
+                            <p class="font-bold text-gray-900">${op.nombre}</p>
+                            <p class="text-gray-500 text-[10px]">ID: ${op.licencia}</p>
+                        </div>
+                        <button onclick="eliminarOperador('${op.id}')" class="text-red-500 hover:text-red-700 p-1"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                `).join('');
             }
 
-            if (unidadesPermitidas.length === 0) {
-                selObsUnidad.innerHTML = '<option value="">No tiene equipos asignados</option>';
-            } else {
-                selObsUnidad.innerHTML = '<option value="">Seleccione...</option>' + unidadesPermitidas.map(u => `<option value="${u.id}">${u.codigo}</option>`).join('');
+            // Select de equipos en el formulario de observaciones
+            const selectObs = document.getElementById('obsUnidad');
+            if (selectObs) {
+                const unidadesVisibles = sesion.rol === 'admin' 
+                    ? db.unidades 
+                    : db.unidades.filter(u => u.codigo === sesion.unidadAcceso);
+                
+                selectObs.innerHTML = '<option value="">-- Seleccionar Equipo --</option>' + 
+                    unidadesVisibles.map(u => `<option value="${u.id}">${u.codigo} - ${u.modelo}</option>`).join('');
             }
         }
 
         function renderAlertasYUnidades() {
             const gridAlertas = document.getElementById('alertGrid');
             const gridUnidades = document.getElementById('gridUnidades');
-            const busqueda = document.getElementById('buscadorInput') ? document.getElementById('buscadorInput').value.toLowerCase() : "";
+            const alertCount = document.getElementById('alertCount');
+            const buscador = document.getElementById('buscadorInput')?.value.toLowerCase() || "";
 
-            let globalAlerts = [];
-            
-            // Determinar qué unidades mostrar según el tipo de acceso
-            let unidadesAMostrar = db.unidades;
+            let alertasHtml = [];
+            let unidadesFiltradas = db.unidades;
+
+            // Filtro por Rol de seguridad
             if (sesion.rol === 'operador') {
-                unidadesAMostrar = db.unidades.filter(u => u.codigo === sesion.unidadAcceso);
-            }
-
-            // Filtrar para el administrador
-            const unidadesFiltradas = unidadesAMostrar.filter(u => {
-                if (sesion.rol === 'admin') {
-                    if (filtroActual === 'Amarilla' && (u.linea !== 'Amarilla' || u.estado === 'Baja')) return false;
-                    if (filtroActual === 'Blanca' && (u.linea !== 'Blanca' || u.estado === 'Baja')) return false;
-                    if (filtroActual === 'Baja' && u.estado !== 'Baja') return false;
-                    if (filtroActual === 'Todos' && u.estado === 'Baja') return false;
-
-                    if (busqueda) {
-                        // Buscar también operadores en la lista de rotación de la unidad
-                        const operadoresUnidad = db.operadores.filter(op => u.operadoresIds && u.operadoresIds.includes(op.id)).map(op => op.nombre.toLowerCase());
-                        const coincideOperador = operadoresUnidad.some(nombre => nombre.includes(busqueda));
-
-                        return u.codigo.toLowerCase().includes(busqueda) || 
-                               u.modelo.toLowerCase().includes(busqueda) || 
-                               coincideOperador;
-                    }
-                }
-                return true;
-            });
-
-            // Procesar Alertas
-            unidadesAMostrar.forEach(u => {
-                if (u.estado === 'Activo') {
-                    const individualAlerts = calcularAlertas(u);
-                    individualAlerts.forEach(a => {
-                        globalAlerts.push({ codigo: u.codigo, ...a });
-                    });
-                }
-            });
-
-            // Pintar Alertas
-            document.getElementById('alertCount').textContent = globalAlerts.length;
-            if (globalAlerts.length === 0) {
-                gridAlertas.innerHTML = '<div class="text-xs text-gray-500 col-span-2">No se registran alertas pendientes de vencimiento en tus equipos.</div>';
+                unidadesFiltradas = unidadesFiltradas.filter(u => u.codigo === sesion.unidadAcceso);
             } else {
-                gridAlertas.innerHTML = globalAlerts.map(a => `
-                    <div class="flex items-center gap-2 p-2.5 rounded-lg border text-xs ${a.tipo === 'error' ? 'bg-red-50 border-red-200 text-red-800' : 'bg-amber-50 border-amber-200 text-amber-800'}">
-                        <i class="fa-solid ${a.tipo === 'error' ? 'fa-circle-xmark' : 'fa-triangle-exclamation'}"></i>
-                        <div>
-                            <span class="font-black">[${a.codigo}]</span> ${a.desc}
-                        </div>
-                    </div>
-                `).join('');
-            }
+                // Filtros de pestañas Administrador
+                if (filtroActual === 'Amarilla') unidadesFiltradas = unidadesFiltradas.filter(u => u.linea === 'Amarilla' && u.estado !== 'Baja');
+                if (filtroActual === 'Blanca') unidadesFiltradas = unidadesFiltradas.filter(u => u.linea === 'Blanca' && u.estado !== 'Baja');
+                if (filtroActual === 'Baja') unidadesFiltradas = unidadesFiltradas.filter(u => u.estado === 'Baja');
+                if (filtroActual === 'Todos') unidadesFiltradas = unidadesFiltradas.filter(u => u.estado !== 'Baja');
 
-            // Pintar Equipos
-            if (unidadesFiltradas.length === 0) {
-                gridUnidades.innerHTML = `
-                    <div class="col-span-1 md:col-span-2 bg-white/50 border-2 border-dashed border-gray-300 rounded-2xl p-12 text-center text-gray-500">
-                        <i class="fa-solid fa-folder-open text-3xl mb-2"></i>
-                        <p class="font-bold">No se encontraron equipos bajo estos parámetros.</p>
-                    </div>
-                `;
-                return;
-            }
-
-            gridUnidades.innerHTML = unidadesFiltradas.map(u => {
-                // Obtener lista completa de operadores asignados a esta unidad (Rotación)
-                let listadoNombresOperadores = 'Sin operador';
-                if (u.operadoresIds && u.operadoresIds.length > 0) {
-                    const deLaUnidad = db.operadores.filter(op => u.operadoresIds.includes(op.id)).map(op => op.nombre);
-                    if (deLaUnidad.length > 0) listadoNombresOperadores = deLaUnidad.join(', ');
+                // Filtro por barra de búsqueda
+                if (buscador) {
+                    unidadesFiltradas = unidadesFiltradas.filter(u => u.codigo.toLowerCase().includes(buscador) || u.modelo.toLowerCase().includes(buscador));
                 }
+            }
 
-                const badgeLinea = u.linea === 'Amarilla' 
-                    ? '<span class="bg-amber-500 text-white font-black text-[10px] px-2 py-0.5 rounded-full uppercase"><i class="fa-solid fa-helmet-safety"></i> L. Amarilla</span>' 
-                    : '<span class="bg-slate-500 text-white font-black text-[10px] px-2 py-0.5 rounded-full uppercase"><i class="fa-solid fa-truck"></i> L. Blanca</span>';
+            // Procesar Alertas y Renderizar Unidades
+            if (gridUnidades) {
+                if (unidadesFiltradas.length === 0) {
+                    gridUnidades.innerHTML = '<div class="col-span-2 text-center py-8 text-gray-500 font-bold bg-white rounded-2xl shadow-sm">No se encontraron unidades registradas.</div>';
+                } else {
+                    gridUnidades.innerHTML = unidadesFiltradas.map(u => {
+                        // Lógica de cálculo de alertas de mantenimiento
+                        const restante = u.valorProximo - u.valorActual;
+                        const porcentajeUso = Math.min((u.valorActual / u.valorProximo) * 100, 100);
+                        let alertaMto = false;
+                        let colorBarra = "bg-emerald-500";
 
-                const badgeEstado = u.estado === 'Baja' 
-                    ? '<span class="bg-red-600 text-white font-black text-[10px] px-2 py-0.5 rounded-full uppercase">DE BAJA</span>' 
-                    : '<span class="bg-emerald-600 text-white font-black text-[10px] px-2 py-0.5 rounded-full uppercase">ACTIVO</span>';
+                        if (restante <= 0) {
+                            alertaMto = true;
+                            colorBarra = "bg-red-600 animate-pulse";
+                            alertasHtml.push(`<div class="bg-red-50 text-red-800 p-2 text-xs font-bold rounded-lg border border-red-200"><i class="fa-solid fa-circle-exclamation mr-1"></i> Unidad ${u.codigo} requiere mantenimiento urgente.</div>`);
+                        } else if (restante <= (u.tipoMedicion === 'Horometro' ? 50 : 500)) {
+                            alertaMto = true;
+                            colorBarra = "bg-amber-500";
+                            alertasHtml.push(`<div class="bg-amber-50 text-amber-800 p-2 text-xs font-bold rounded-lg border border-amber-200"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Unidad ${u.codigo} próxima a mantenimiento.</div>`);
+                        }
 
-                const ratio = Math.min((u.valorActual / u.valorProximo) * 100, 100).toFixed(0);
-                const colorBarra = ratio > 90 ? 'bg-red-600' : ratio > 75 ? 'bg-amber-500' : 'bg-emerald-600';
+                        // Validar fechas de documentos vencidos
+                        const hoy = new Date();
+                        ['soat', 'citv', 'seguro'].forEach(doc => {
+                            if (u[doc]) {
+                                const fechaDoc = new Date(u[doc]);
+                                if (fechaDoc <= hoy) {
+                                    alertasHtml.push(`<div class="bg-red-50 text-red-800 p-2 text-xs font-bold rounded-lg border border-red-200"><i class="fa-solid fa-file-shield mr-1"></i> Unidad ${u.codigo}: Documento ${doc.toUpperCase()} vencido.</div>`);
+                                }
+                            }
+                        });
 
-                const panelAcciones = sesion.rol === 'admin' ? `
-                    <div class="p-4 bg-gray-50 border-t flex justify-between items-center gap-2">
-                        <button onclick="darDeBaja('${u.id}')" class="flex-1 ${u.estado === 'Baja' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-amber-600 hover:bg-amber-700'} text-white text-xs font-black py-2 rounded-lg transition-colors uppercase">
-                            ${u.estado === 'Baja' ? '<i class="fa-solid fa-arrow-rotate-left"></i> Activar' : '<i class="fa-solid fa-ban"></i> Dar de Baja'}
-                        </button>
-                        <button onclick="eliminarUnidad('${u.id}')" class="bg-red-600 hover:bg-red-700 text-white text-xs font-black px-3 py-2 rounded-lg transition-colors uppercase" title="Eliminar definitivamente">
-                            <i class="fa-solid fa-trash-can"></i>
-                        </button>
-                    </div>
-                ` : '';
+                        // Obtener nombres de los operadores asignados
+                        const opsNombres = (u.operadoresIds || []).map(id => {
+                            const o = db.operadores.find(op => op.id === id);
+                            return o ? o.nombre : null;
+                        }).filter(n => n !== null).join(', ') || "Sin operador asignado";
 
-                return `
-                    <div class="bg-white rounded-2xl overflow-hidden shadow-lg border-2 ${u.estado === 'Baja' ? 'border-red-400 bg-red-50/50' : 'border-gray-100'} flex flex-col justify-between transition-all hover:shadow-xl">
-                        <div>
-                            <!-- Img Cabecera con opción de reemplazarla -->
-                            <div class="h-44 bg-gray-200 relative group">
-                                ${u.foto ? `<img src="${u.foto}" class="w-full h-full object-cover">` : `<div class="w-full h-full flex items-center justify-center text-gray-400"><i class="fa-solid fa-tractor text-4xl"></i></div>`}
-                                <div class="absolute top-2 left-2 flex flex-col gap-1">
-                                    ${badgeLinea}
-                                    ${badgeEstado}
+                        // Renderizado de Imagen por defecto si no tiene foto subida
+                        const imagenUrl = u.foto || 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=400';
+
+                        return `
+                            <div class="bg-white rounded-3xl overflow-hidden shadow-lg border-2 ${alertaMto ? 'border-amber-400' : 'border-transparent'} relative transition-all hover:shadow-xl">
+                                <div class="h-44 bg-gray-200 relative group cursor-pointer" onclick="solicitarReemplazoFoto('${u.id}', 'unidad')">
+                                    <img src="${imagenUrl}" class="w-full h-full object-cover">
+                                    <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white text-xs font-bold gap-1">
+                                        <i class="fa-solid fa-camera"></i> Cambiar Foto
+                                    </div>
+                                    <span class="absolute top-3 left-3 px-3 py-1 text-[10px] font-black uppercase tracking-wider rounded-full shadow-md text-white ${u.linea === 'Amarilla' ? 'bg-amber-500' : 'bg-slate-700'}">
+                                        Línea ${u.linea}
+                                    </span>
+                                    <span class="absolute top-3 right-3 text-xs font-mono font-bold bg-gray-950/80 text-white px-2 py-0.5 rounded">
+                                        ${u.codigo}
+                                    </span>
                                 </div>
-                                <button onclick="solicitarReemplazoFoto('${u.id}', 'unidad')" class="absolute bottom-2 right-2 bg-gray-900/80 text-white hover:bg-industrial-500 transition-colors px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 shadow-lg">
-                                    <i class="fa-solid fa-camera"></i> Reemplazar Foto
-                                </button>
-                            </div>
-
-                            <div class="p-5 space-y-4">
-                                <div class="flex justify-between items-start border-b pb-2">
-                                    <div class="w-1/2">
-                                        <h3 class="text-lg font-black text-gray-900">${u.codigo}</h3>
-                                        <p class="text-xs text-gray-500 font-bold">${u.modelo}</p>
-                                    </div>
-                                    <div class="text-right w-1/2">
-                                        <p class="text-[10px] text-gray-400 font-bold uppercase">Personal Asignado</p>
-                                        <p class="text-xs font-bold text-gray-800 break-words leading-tight" title="${listadoNombresOperadores}">
-                                            <i class="fa-solid fa-people-arrows"></i> ${listadoNombresOperadores}
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <div class="grid grid-cols-2 gap-2 bg-gray-50 p-2.5 rounded-xl border">
+                                <div class="p-5 space-y-4">
                                     <div>
-                                        <span class="text-[10px] font-bold text-gray-400 uppercase">Abastecimiento</span>
-                                        <p class="text-xs font-black text-gray-800">${u.abastecimiento ? `${u.abastecimiento} Gal` : 'N/A'}</p>
+                                        <h4 class="text-base font-black tracking-tight text-gray-950">${u.modelo}</h4>
+                                        <p class="text-xs text-gray-500 font-medium mt-0.5"><i class="fa-solid fa-user-gear mr-1"></i> ${opsNombres}</p>
                                     </div>
-                                    <div>
-                                        <span class="text-[10px] font-bold text-gray-400 uppercase">Medición actual</span>
-                                        <div class="flex items-center gap-1.5">
-                                            <p class="text-xs font-black text-gray-800">${u.valorActual} ${u.tipoMedicion === 'Horometro' ? 'Hrs' : 'Km'}</p>
-                                            <button onclick="actualizarMedicion('${u.id}', '${u.tipoMedicion}')" class="text-industrial-500 hover:text-industrial-700 text-xs" title="Actualizar Lectura">
-                                                <i class="fa-solid fa-pen-to-square text-sm"></i>
-                                            </button>
+                                    <div class="space-y-1">
+                                        <div class="flex justify-between text-xs font-bold text-gray-700">
+                                            <span>Progreso Mantenimiento</span>
+                                            <span>${u.valorActual} / ${u.valorProximo} ${u.tipoMedicion === 'Horometro' ? 'Hrs' : 'Km'}</span>
+                                        </div>
+                                        <div class="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden">
+                                            <div class="${colorBarra}" style="width: ${porcentajeUso}%"></div>
                                         </div>
                                     </div>
-                                </div>
-
-                                <div class="space-y-1">
-                                    <div class="flex justify-between text-xs font-bold text-gray-600">
-                                        <span>Próximo Mantenimiento</span>
-                                        <span>${u.valorProximo} ${u.tipoMedicion === 'Horometro' ? 'Hrs' : 'Km'} (${ratio}%)</span>
+                                    <div class="grid grid-cols-2 gap-2 text-[11px] font-bold text-gray-600 border-t pt-3">
+                                        <div>SOAT: <span class="${u.soat ? 'text-gray-900' : 'text-gray-400'}">${u.soat || 'N/R'}</span></div>
+                                        <div>CITV: <span class="${u.citv ? 'text-gray-900' : 'text-gray-400'}">${u.citv || 'N/R'}</span></div>
                                     </div>
-                                    <div class="w-full bg-gray-200 rounded-full h-2">
-                                        <div class="${colorBarra} h-2 rounded-full" style="width: ${ratio}%"></div>
-                                    </div>
-                                </div>
-
-                                <div class="grid grid-cols-3 gap-1 bg-gray-900 text-white p-2 rounded-xl text-center text-[10px]">
-                                    <div>
-                                        <p class="text-gray-400 font-bold">SOAT</p>
-                                        <p class="font-black">${u.soat ? formatFechaParaVista(u.soat) : 'N/P'}</p>
-                                    </div>
-                                    <div>
-                                        <p class="text-gray-400 font-bold">CITV</p>
-                                        <p class="font-black">${u.citv ? formatFechaParaVista(u.citv) : 'N/P'}</p>
-                                    </div>
-                                    <div>
-                                        <p class="text-gray-400 font-bold">SEGURO</p>
-                                        <p class="font-black">${u.seguro ? formatFechaParaVista(u.seguro) : 'N/P'}</p>
-                                    </div>
-                                </div>
-
-                                ${individualAlerts.length > 0 ? `
-                                    <div class="space-y-1 border-t pt-2">
-                                        ${individualAlerts.map(a => `
-                                            <div class="text-[10px] font-bold p-1 rounded ${a.tipo === 'error' ? 'bg-red-50 text-red-800' : 'bg-amber-50 text-amber-800'}">
-                                                ⚠ ${a.desc}
+                                    ${sesion.rol === 'admin' ? `
+                                        <div class="flex justify-between items-center border-t pt-3 gap-2">
+                                            <button onclick="actualizarMedicion('${u.id}', '${u.tipoMedicion}')" class="bg-industrial-500 hover:bg-industrial-600 text-white font-bold py-1.5 px-3 rounded-lg text-xs flex items-center gap-1">
+                                                <i class="fa-solid fa-gauge"></i> Lectura
+                                            </button>
+                                            <div class="flex gap-1">
+                                                <button onclick="darDeBaja('${u.id}')" title="Dar de baja/Activar" class="p-1.5 border text-gray-600 hover:bg-gray-100 rounded-lg text-xs">
+                                                    <i class="fa-solid fa-ban"></i>
+                                                </button>
+                                                <button onclick="eliminarUnidad('${u.id}')" title="Eliminar definitivamente" class="p-1.5 border text-red-500 hover:bg-red-50 rounded-lg text-xs">
+                                                    <i class="fa-solid fa-trash"></i>
+                                                </button>
                                             </div>
-                                        `).join('')}
-                                    </div>
-                                ` : ''}
+                                        </div>
+                                    ` : `
+                                        <button onclick="actualizarMedicion('${u.id}', '${u.tipoMedicion}')" class="w-full bg-industrial-500 hover:bg-industrial-600 text-white font-bold py-2 rounded-lg text-xs flex items-center justify-center gap-1 shadow-md">
+                                            <i class="fa-solid fa-gauge"></i> Actualizar Lectura Diaria
+                                        </button>
+                                    `}
+                                </div>
                             </div>
-                        </div>
-                        ${panelAcciones}
-                    </div>
-                `;
-            }).join('');
-        }
+                        `;
+                    }).join('');
+                }
+            }
 
-        function formatFechaParaVista(dateStr) {
-            if (!dateStr) return 'N/P';
-            const parts = dateStr.split('-');
-            if (parts.length === 3) return `${parts[2]}/${parts[1]}`;
-            return dateStr;
+            // Pintar cuadrícula de alertas
+            if (gridAlertas) {
+                if (alertasHtml.length === 0) {
+                    gridAlertas.innerHTML = '<div class="text-xs text-emerald-700 font-bold bg-emerald-50 p-3 rounded-xl border border-emerald-200 col-span-2 flex items-center gap-1"><i class="fa-solid fa-circle-check"></i> Operando con normalidad. No hay alertas críticas de flota.</div>';
+                    if (alertCount) alertCount.textContent = "0";
+                } else {
+                    gridAlertas.innerHTML = alertasHtml.join('');
+                    if (alertCount) alertCount.textContent = alertasHtml.length;
+                }
+            }
         }
 
         function renderObservaciones() {
-            const contenedor = document.getElementById('listaObservaciones');
-            if (!contenedor) return;
+            const container = document.getElementById('listaObservaciones');
+            if (!container) return;
 
-            let observacionesAMostrar = db.observaciones;
+            let filtradas = db.observaciones;
             if (sesion.rol === 'operador') {
-                const equiposAsociadosIds = db.unidades.filter(u => u.codigo === sesion.unidadAcceso).map(u => u.id);
-                observacionesAMostrar = db.observaciones.filter(o => equiposAsociadosIds.includes(o.unidadId));
+                const misUnidadesIds = db.unidades.filter(u => u.codigo === sesion.unidadAcceso).map(u => u.id);
+                filtradas = filtradas.filter(o => misUnidadesIds.includes(o.unidadId));
             }
 
-            if (observacionesAMostrar.length === 0) {
-                contenedor.innerHTML = '<p class="text-sm text-gray-500 text-center py-4 bg-gray-50 rounded-xl border border-dashed">No hay reportes ni observaciones de este equipo.</p>';
+            if (filtradas.length === 0) {
+                container.innerHTML = '<p class="text-xs text-gray-400 font-medium text-center py-4 bg-gray-50 rounded-xl border border-dashed">No hay reportes ni observaciones registradas.</p>';
                 return;
             }
 
-            const ordenadas = [...observacionesAMostrar].reverse();
-
-            contenedor.innerHTML = ordenadas.map(o => {
-                const equipo = db.unidades.find(u => u.id === o.unidadId);
-                const codigoEquipo = equipo ? equipo.codigo : 'Equipo Eliminado';
-
-                let badgeColor = "";
-                if (o.status === 'COMPLETADO') badgeColor = "bg-emerald-100 text-emerald-800 border-emerald-300";
-                else if (o.status === 'EN PROCESO') badgeColor = "bg-amber-100 text-amber-800 border-amber-300";
-                else badgeColor = "bg-blue-100 text-blue-800 border-blue-300";
+            container.innerHTML = filtradas.slice().reverse().map(o => {
+                const unidad = db.unidades.find(u => u.id === o.unidadId);
+                const codigoUnidad = unidad ? unidad.codigo : "Desconocido";
+                
+                let colorStatus = "bg-blue-100 text-blue-800";
+                if (o.status === 'EN PROCESO') colorStatus = "bg-amber-100 text-amber-800";
+                if (o.status === 'COMPLETADO') colorStatus = "bg-emerald-100 text-emerald-800";
 
                 return `
-                    <div class="bg-white p-4 rounded-xl shadow-sm border flex flex-col md:flex-row gap-4 justify-between items-start md:items-center hover:shadow-md transition-all">
-                        <div class="flex gap-3 items-start flex-1">
-                            <div class="relative group w-16 h-16 rounded overflow-hidden border flex-shrink-0 bg-gray-50">
-                                ${o.foto ? `<img src="${o.foto}" class="w-full h-full object-cover">` : `<div class="w-full h-full flex items-center justify-center text-gray-400"><i class="fa-solid fa-camera"></i></div>`}
-                                <button onclick="solicitarReemplazoFoto('${o.id}', 'observacion')" class="absolute inset-0 bg-black/60 text-white text-[9px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity font-bold">
-                                    Cambiar
-                                </button>
+                    <div class="bg-gray-50 rounded-xl p-4 border flex flex-col sm:flex-row gap-4 justify-between relative shadow-sm hover:shadow-md transition-shadow">
+                        <div class="flex-1 space-y-2">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span class="text-xs font-black bg-gray-900 text-white px-2 py-0.5 rounded font-mono">${codigoUnidad}</span>
+                                <span class="text-[10px] font-bold text-gray-400"><i class="fa-solid fa-calendar-day"></i> ${o.fecha}</span>
+                                <span class="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded ${colorStatus}">${o.status}</span>
                             </div>
-                            <div>
-                                <div class="flex flex-wrap gap-2 items-center">
-                                    <span class="font-black text-gray-800 text-sm">[${codigoEquipo}]</span>
-                                    <span class="text-[10px] text-gray-400 font-mono">${o.fecha}</span>
-                                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border ${badgeColor}">${o.status}</span>
+                            <p class="text-xs text-gray-700 font-medium leading-relaxed">${o.detalle}</p>
+                            ${sesion.rol === 'admin' ? `
+                                <div class="flex items-center gap-1 pt-1">
+                                    <span class="text-[10px] font-bold text-gray-500 mr-1">Cambiar a:</span>
+                                    <button onclick="cambiarEstadoObservacion('${o.id}', 'PROGRAMADO')" class="px-2 py-0.5 border rounded bg-white text-[9px] font-bold hover:bg-blue-50">🔵 Prog</button>
+                                    <button onclick="cambiarEstadoObservacion('${o.id}', 'EN PROCESO')" class="px-2 py-0.5 border rounded bg-white text-[9px] font-bold hover:bg-amber-50">🟡 Proc</button>
+                                    <button onclick="cambiarEstadoObservacion('${o.id}', 'COMPLETADO')" class="px-2 py-0.5 border rounded bg-white text-[9px] font-bold hover:bg-emerald-50">🟢 Comp</button>
+                                    <button onclick="eliminarObservacion('${o.id}')" class="text-red-500 hover:text-red-700 ml-auto p-1 text-xs"><i class="fa-solid fa-trash"></i></button>
                                 </div>
-                                <p class="text-xs text-gray-600 mt-1">${o.detalle}</p>
+                            ` : ''}
+                        </div>
+                        ${o.foto ? `
+                            <div class="w-20 h-20 rounded-lg overflow-hidden border bg-white cursor-pointer relative group flex-shrink-0 mx-auto sm:mx-0" onclick="solicitarReemplazoFoto('${o.id}', 'observacion')">
+                                <img src="${o.foto}" class="w-full h-full object-cover">
+                                <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[9px] font-bold"><i class="fa-solid fa-rotate"></i></div>
                             </div>
-                        </div>
-
-                        <div class="flex items-center gap-2 w-full md:w-auto justify-end">
-                            <label class="text-[10px] font-bold text-gray-400 uppercase">Estado:</label>
-                            <select onchange="cambiarEstadoObservacion('${o.id}', this.value)" class="text-xs border rounded p-1 bg-gray-50 font-bold">
-                                <option value="PROGRAMADO" ${o.status === 'PROGRAMADO' ? 'selected' : ''}>🔵 Programado</option>
-                                <option value="EN PROCESO" ${o.status === 'EN PROCESO' ? 'selected' : ''}>🟡 En Proceso</option>
-                                <option value="COMPLETADO" ${o.status === 'COMPLETADO' ? 'selected' : ''}>🟢 Completado</option>
-                            </select>
-                            <button onclick="eliminarObservacion('${o.id}')" class="text-red-500 hover:text-red-700 p-1 ml-1" title="Eliminar Observación">
-                                <i class="fa-solid fa-trash"></i>
+                        ` : `
+                            <button onclick="solicitarReemplazoFoto('${o.id}', 'observacion')" class="w-20 h-20 rounded-lg border-2 border-dashed flex flex-col items-center justify-center text-gray-400 hover:text-industrial-500 hover:border-industrial-500 transition-colors bg-white flex-shrink-0 mx-auto sm:mx-0 text-[10px] font-bold">
+                                <i class="fa-solid fa-image text-base mb-0.5"></i> + Foto
                             </button>
-                        </div>
+                        `}
                     </div>
                 `;
             }).join('');
         }
 
-        // --- COMPARTIR ---
         function compartirApp() {
-            let txt = "";
-            if (sesion.rol === 'admin') {
-                const numUnidades = db.unidades.filter(u => u.estado === 'Activo').length;
-                const numAlertas = document.getElementById('alertCount').textContent;
-                txt = `📋 *CART - Gestión de Flota*\n🛠 Estado: Modo Administrador\n🚜 Equipos Activos: ${numUnidades}\n🚨 Alertas Críticas: ${numAlertas}`;
-            } else {
-                const eq = db.unidades.find(u => u.codigo === sesion.unidadAcceso);
-                if (eq) {
-                    const mtoStatus = eq.valorProximo - eq.valorActual;
-                    txt = `🚜 *CART - Estado del Equipo [${eq.codigo}]*\n🔧 Modelo: ${eq.modelo}\n📊 Lectura Actual: ${eq.valorActual} ${eq.tipoMedicion === 'Horometro' ? 'Hrs' : 'Km'}\n⚠️ Resta para mantenimiento: ${mtoStatus > 0 ? mtoStatus : 'VENCIDO'} ${eq.tipoMedicion === 'Horometro' ? 'Hrs' : 'Km'}`;
-                } else {
-                    txt = `🚜 *CART - Gestión de Flota*\nInicia sesión con el código de tu máquina.`;
-                }
-            }
-
             if (navigator.share) {
                 navigator.share({
                     title: 'CART - Gestión de Flota',
-                    text: txt,
                     url: window.location.href
                 }).catch(console.error);
             } else {
-                const wUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(txt)}`;
-                window.open(wUrl, '_blank');
+                navigator.clipboard.writeText(window.location.href);
+                alert("¡Enlace copiado al portapapeles! Compártelo con tus operadores.");
             }
         }
 
-        // Cargar todo inicialmente
-        cargarBD();
+        // --- INICIALIZACIÓN ---
+        window.onload = function() {
+            cargarBD();
+        };
     </script>
 </body>
 </html>
