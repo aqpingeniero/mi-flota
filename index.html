@@ -888,5 +888,75 @@
             cargarBD();
         };
     </script>
+    <!-- Importamos los módulos oficiales de Firebase desde internet -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+  import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+  // ==========================================
+  // PEGA TU BLOQUE 'firebaseConfig' AQUÍ ABAJO
+  // ==========================================
+  const firebaseConfig = {
+    apiKey: "TU_API_KEY_REAL",
+    authDomain: "TU_PROYECTO.firebaseapp.com",
+    projectId: "TU_PROYECTO_ID",
+    storageBucket: "TU_PROYECTO.appspot.com",
+    messagingSenderId: "TU_SENDER_ID",
+    appId: "TU_APP_ID"
+  };
+  // ==========================================
+
+  // Inicializamos Firebase y la Base de Datos
+  const app = initializeApp(firebaseConfig);
+  const dbFirestore = getFirestore(app);
+
+  // Nombre del documento único en la nube donde se centralizarán tus datos
+  const DOC_ID = "flota_datos"; 
+
+  // Reemplazamos la función de GUARDAR para que apunte a Firebase
+  window.guardarBD = async function() {
+      try {
+          await setDoc(doc(dbFirestore, "configuracion", DOC_ID), db);
+          console.log("¡Sincronizado con éxito en Firebase!");
+          renderTodo();
+      } catch (error) {
+          console.error("Error al sincronizar con la nube:", error);
+      }
+  }
+
+  // Reemplazamos la función de CARGAR para que traiga los datos de la nube
+  window.cargarBD = async function() {
+      try {
+          const docRef = doc(dbFirestore, "configuracion", DOC_ID);
+          const docSnap = await getDoc(docRef);
+
+          if (docSnap.exists()) {
+              db = docSnap.data();
+              console.log("Datos de flota recuperados desde la nube.");
+          } else {
+              console.log("Creando base de datos inicial en Firebase...");
+              // Si tu base de datos en la nube está vacía, se inicializa limpia:
+              db = {
+                  unidades: [],
+                  operadores: [],
+                  observaciones: []
+              };
+              await guardarBD();
+          }
+          
+          // Mantener la sesión del dispositivo activa
+          if (!localStorage.getItem('cart_sesion')) {
+              sesion = { activo: true, usuario: 'admin', rol: 'admin', unidadAcceso: null };
+              localStorage.setItem('cart_sesion', JSON.stringify(sesion));
+          } else {
+              sesion = JSON.parse(localStorage.getItem('cart_sesion'));
+          }
+
+          renderTodo();
+      } catch (error) {
+          console.error("Error al conectar con la base de datos:", error);
+      }
+  }
+</script>
 </body>
 </html>
