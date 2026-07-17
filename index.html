@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CART - Control de Flota</title>
+    <title>CART - Gestión Integral de Flotas</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome para Iconos -->
@@ -16,7 +16,7 @@
                         industrial: {
                             500: '#f59e0b',
                             600: '#d97706',
-                            950: '#451a03',
+                            950: '#1e1b4b',
                         }
                     }
                 }
@@ -26,273 +26,266 @@
 </head>
 <body class="bg-gray-100 min-h-screen text-gray-900 pb-12">
 
-    <!-- CABECERA -->
-    <header class="bg-gray-950 text-white shadow-md border-b-4 border-industrial-500 py-4 px-6 mb-6">
-        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
-            <div class="flex items-center gap-3">
-                <div class="bg-industrial-500 text-gray-950 p-2 rounded-lg">
-                    <i class="fa-solid fa-truck-monster text-xl"></i>
+    <!-- PANTALLA DE INGRESO / LOGIN OBLIGATORIO -->
+    <div id="loginScreen" class="fixed inset-0 bg-gray-950 flex flex-col items-center justify-center z-50 p-4">
+        <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-sm space-y-4 border-t-4 border-industrial-500">
+            <div class="text-center">
+                <div class="bg-industrial-500 text-gray-950 w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-2 text-xl shadow">
+                    <i class="fa-solid fa-key"></i>
                 </div>
-                <div>
-                    <h1 class="text-lg font-black tracking-wider">CART | CONTROL DE FLOTA</h1>
-                    <p class="text-[9px] text-gray-400 uppercase tracking-widest">Base de Datos en Tiempo Real (Firebase)</p>
-                </div>
+                <h2 class="text-base font-black uppercase tracking-wider">Control de Flota CART</h2>
+                <p class="text-[10px] text-gray-400 uppercase font-bold">Ingrese código de equipo o acceso general</p>
             </div>
-            <button onclick="compartirApp()" class="bg-gray-900 hover:bg-gray-800 border border-gray-800 text-gray-300 font-bold py-1.5 px-3 rounded-lg text-xs flex items-center gap-2 transition-all">
-                <i class="fa-solid fa-share-nodes"></i> Compartir App
+            <div>
+                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Código de Acceso / Placa</label>
+                <input type="text" id="accessCodeInput" placeholder="Ej: CART o VOL-01" class="w-full border-2 border-gray-200 p-2 text-xs rounded-xl text-center font-bold tracking-widest uppercase outline-none focus:border-industrial-500">
+            </div>
+            <button onclick="validarAcceso()" class="w-full bg-gray-950 hover:bg-gray-900 text-white text-xs font-black py-2.5 px-4 rounded-xl shadow-md uppercase tracking-wider transition-all">
+                Ingresar al Sistema
             </button>
         </div>
-    </header>
+    </div>
 
-    <main class="max-w-7xl mx-auto px-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        <!-- COLUMNA IZQUIERDA: REGISTROS Y AGREGAR DATOS -->
-        <div class="space-y-6 lg:col-span-1">
+    <!-- NAVEGACIÓN Y PANEL PRINCIPAL (OCULTO HASTA LOGUEARSE) -->
+    <div id="appContent" class="hidden">
+        <!-- CABECERA -->
+        <header class="bg-gray-950 text-white shadow-md border-b-4 border-industrial-500 py-4 px-6 mb-6">
+            <div class="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div class="flex items-center gap-3">
+                    <div class="bg-industrial-500 text-gray-950 p-2 rounded-lg cursor-pointer" onclick="subirLogo()">
+                        <i id="appLogoIcon" class="fa-solid fa-truck-monster text-xl"></i>
+                        <img id="appLogoImg" src="" class="hidden w-6 h-6 object-contain rounded">
+                    </div>
+                    <div>
+                        <h1 class="text-lg font-black tracking-wider">CART | CONTROL DE FLOTA</h1>
+                        <p class="text-[9px] text-gray-400 uppercase tracking-widest">Sesión: <span id="sessionBadge" class="text-industrial-500"></span></p>
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="compartirApp()" class="bg-gray-900 hover:bg-gray-800 border border-gray-800 text-gray-300 font-bold py-1.5 px-3 rounded-lg text-xs flex items-center gap-2 transition-all">
+                        <i class="fa-solid fa-share-nodes"></i> Compartir
+                    </button>
+                    <button onclick="cerrarSesion()" class="bg-red-950 border border-red-900 text-red-200 font-bold py-1.5 px-3 rounded-lg text-xs transition-all">
+                        Salir <i class="fa-solid fa-right-from-bracket ml-1"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- PANEL DE MÉTRICAS GLOBALES (VISTA TOTAL PARA ADMIN) -->
+        <section id="metricsPanel" class="max-w-7xl mx-auto px-4 mb-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-200 text-center">
+                <p class="text-[9px] text-gray-400 font-bold uppercase">Equipos Operativos</p>
+                <h3 id="mEquiposOp" class="text-lg font-black text-emerald-600">0</h3>
+            </div>
+            <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-200 text-center">
+                <p class="text-[9px] text-gray-400 font-bold uppercase">Equipos de Baja</p>
+                <h3 id="mEquiposBaja" class="text-lg font-black text-red-500">0</h3>
+            </div>
+            <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-200 text-center">
+                <p class="text-[9px] text-gray-400 font-bold uppercase">Operadores Activos</p>
+                <h3 id="mOpsOp" class="text-lg font-black text-emerald-600">0</h3>
+            </div>
+            <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-200 text-center">
+                <p class="text-[9px] text-gray-400 font-bold uppercase">Operadores de Baja</p>
+                <h3 id="mOpsBaja" class="text-lg font-black text-red-500">0</h3>
+            </div>
+        </section>
+
+        <main class="max-w-7xl mx-auto px-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
             
-            <!-- 1. REGISTRAR OPERADOR PRIMERO -->
-            <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
-                <h3 class="text-xs font-black text-gray-900 border-b pb-2 uppercase tracking-wider mb-3 text-industrial-600">
-                    <i class="fa-solid fa-user-plus mr-1"></i> Paso 1: Registrar Operador
-                </h3>
-                <form id="formOperador" onsubmit="agregarOperador(event)" class="space-y-3">
-                    <div>
-                        <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Nombre Completo</label>
-                        <input type="text" id="opNombre" required placeholder="Ej. Juan Pérez" class="w-full border p-2 text-xs rounded-lg outline-none focus:border-industrial-500">
-                    </div>
-                    <div>
-                        <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">DNI / Licencia de Conducir</label>
-                        <input type="text" id="opLicencia" required placeholder="Ej. AIII-C 4589..." class="w-full border p-2 text-xs rounded-lg outline-none focus:border-industrial-500">
-                    </div>
-                    <button type="submit" class="w-full bg-gray-950 hover:bg-gray-900 text-white text-xs font-bold py-2 px-4 rounded-lg transition-all">
-                        Registrar Operador
-                    </button>
-                </form>
+            <!-- SECCIÓN FORMULARIOS (SOLO VISIBLE PARA ADMIN) -->
+            <div id="adminFormsColumn" class="space-y-6 lg:col-span-1">
+                <!-- REGISTRAR OPERADOR -->
+                <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
+                    <h3 class="text-xs font-black text-gray-900 border-b pb-2 uppercase tracking-wider mb-3 text-industrial-600"><i class="fa-solid fa-user-plus mr-1"></i> 1. Plantilla de Operadores</h3>
+                    <form id="formOperador" onsubmit="agregarOperador(event)" class="space-y-2">
+                        <input type="text" id="opNombre" required placeholder="Nombre Completo" class="w-full border p-2 text-xs rounded-lg outline-none">
+                        <input type="text" id="opLicencia" required placeholder="DNI / Licencia" class="w-full border p-2 text-xs rounded-lg outline-none">
+                        <button type="submit" class="w-full bg-gray-950 text-white text-xs font-bold py-2 rounded-lg">Agregar Operador</button>
+                    </form>
+                    <div id="listaOperadores" class="mt-3 max-h-24 overflow-y-auto space-y-1"></div>
+                </div>
 
-                <div class="mt-4">
-                    <p class="text-[10px] font-bold text-gray-400 uppercase mb-1">Plantilla de Operadores:</p>
-                    <div id="listaOperadores" class="max-h-28 overflow-y-auto space-y-1">
-                        <!-- Operadores Registrados -->
-                    </div>
+                <!-- REGISTRAR EQUIPO -->
+                <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
+                    <h3 class="text-xs font-black text-gray-900 border-b pb-2 uppercase tracking-wider mb-3 text-industrial-600"><i class="fa-solid fa-square-plus mr-1"></i> 2. Registrar Unidad</h3>
+                    <form id="formUnidad" onsubmit="agregarUnidad(event)" class="space-y-2">
+                        <div class="grid grid-cols-2 gap-2">
+                            <input type="text" id="unidadCodigo" required placeholder="Código (Ej: VOL-01)" class="w-full border p-2 text-xs rounded-lg uppercase">
+                            <input type="text" id="unidadModelo" required placeholder="Modelo (Ej: Volvo FMX)" class="w-full border p-2 text-xs rounded-lg">
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <select id="unidadLinea" class="w-full border p-2 text-xs rounded-lg"><option value="Amarilla">Línea Amarilla</option><option value="Blanca">Línea Blanca</option></select>
+                            <select id="unidadMedicion" class="w-full border p-2 text-xs rounded-lg"><option value="Horometro">Horas (Hrs)</option><option value="Odometro">Kilómetros (Km)</option></select>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <input type="number" id="unidadValorActual" required placeholder="Lectura Inicial Fija" class="w-full border p-2 text-xs rounded-lg">
+                            <input type="number" id="unidadValorProximo" required placeholder="Límite Próx. Mto." class="w-full border p-2 text-xs rounded-lg">
+                        </div>
+                        <select id="unidadOperadorAsignado" class="w-full border p-2 text-xs rounded-lg"><option value="">-- Asignar Operador --</option></select>
+                        <div class="grid grid-cols-2 gap-1 text-[10px]">
+                            <label>SOAT:<input type="date" id="unidadSoat" class="w-full border p-1 rounded"></label>
+                            <label>CITV:<input type="date" id="unidadCitv" class="w-full border p-1 rounded"></label>
+                            <label>Seguro:<input type="date" id="unidadSeguro" class="w-full border p-1 rounded"></label>
+                            <label>Cert. Operatividad:<input type="date" id="unidadCert" class="w-full border p-1 rounded"></label>
+                        </div>
+                        <div class="border-t pt-2 mt-1">
+                            <label class="block text-[9px] font-black text-gray-400 uppercase">Alerta Adicional Personalizada (Opcional)</label>
+                            <div class="grid grid-cols-2 gap-1 mt-1">
+                                <input type="text" id="unidadCustomNombre" placeholder="Nombre Alerta" class="border p-1 text-[10px] rounded">
+                                <input type="date" id="unidadCustomFecha" class="border p-1 text-[10px] rounded">
+                            </div>
+                        </div>
+                        <button type="submit" class="w-full bg-gray-950 text-white text-xs font-bold py-2 rounded-lg">Registrar Unidad</button>
+                    </form>
                 </div>
             </div>
 
-            <!-- 2. REGISTRAR EQUIPO (ASIGNANDO OPERADOR) -->
-            <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
-                <h3 class="text-xs font-black text-gray-900 border-b pb-2 uppercase tracking-wider mb-3 text-industrial-600">
-                    <i class="fa-solid fa-square-plus mr-1"></i> Paso 2: Registrar Equipo
-                </h3>
-                <form id="formUnidad" onsubmit="agregarUnidad(event)" class="space-y-3">
-                    <div class="grid grid-cols-2 gap-2">
-                        <div>
-                            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Código Equipo</label>
-                            <input type="text" id="unidadCodigo" required placeholder="Ej. CARMIX-01" class="w-full border p-2 text-xs rounded-lg outline-none">
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Modelo / Descripción</label>
-                            <input type="text" id="unidadModelo" required placeholder="Ej. Carmix 5.5 / Volvo FMX" class="w-full border p-2 text-xs rounded-lg outline-none">
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-2">
-                        <div>
-                            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Línea</label>
-                            <select id="unidadLinea" class="w-full border p-2 text-xs rounded-lg outline-none">
-                                <option value="Amarilla">Línea Amarilla</option>
-                                <option value="Blanca">Línea Blanca</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Medición</label>
-                            <select id="unidadMedicion" class="w-full border p-2 text-xs rounded-lg outline-none">
-                                <option value="Horometro">Horómetro (Hrs)</option>
-                                <option value="Odometro">Odómetro (Km)</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-2">
-                        <div>
-                            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Lectura Actual</label>
-                            <input type="number" id="unidadValorActual" required min="0" value="0" class="w-full border p-2 text-xs rounded-lg outline-none">
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Límite Próx. Servicio</label>
-                            <input type="number" id="unidadValorProximo" required min="0" value="250" class="w-full border p-2 text-xs rounded-lg outline-none">
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Asignar Operador de la Lista</label>
-                        <select id="unidadOperadorAsignado" class="w-full border p-2 text-xs rounded-lg outline-none">
-                            <option value="">-- Sin Asignar / Ninguno --</option>
-                        </select>
-                    </div>
-
-                    <div class="grid grid-cols-3 gap-1">
-                        <div>
-                            <label class="block text-[8px] font-bold text-gray-500 uppercase mb-0.5">SOAT Vence</label>
-                            <input type="date" id="unidadSoat" class="w-full border p-1 text-[10px] rounded-lg">
-                        </div>
-                        <div>
-                            <label class="block text-[8px] font-bold text-gray-500 uppercase mb-0.5">CITV Vence</label>
-                            <input type="date" id="unidadCitv" class="w-full border p-1 text-[10px] rounded-lg">
-                        </div>
-                        <div>
-                            <label class="block text-[8px] font-bold text-gray-500 uppercase mb-0.5">Seguro Vence</label>
-                            <input type="date" id="unidadSeguro" class="w-full border p-1 text-[10px] rounded-lg">
-                        </div>
-                    </div>
-
-                    <button type="submit" class="w-full bg-gray-950 hover:bg-gray-900 text-white text-xs font-bold py-2 px-4 rounded-lg transition-all">
-                        Registrar Unidad
-                    </button>
-                </form>
-            </div>
-
-            <!-- 3. REPORTAR NOVEDAD / OBSERVACIÓN -->
-            <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
-                <h3 class="text-xs font-black text-gray-900 border-b pb-2 uppercase tracking-wider mb-3 text-industrial-600">
-                    <i class="fa-solid fa-triangle-exclamation mr-1"></i> Reportar Observación o Falla
-                </h3>
-                <form id="formObservacion" onsubmit="agregarObservacion(event)" class="space-y-3">
-                    <div>
-                        <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Seleccionar Equipo</label>
-                        <select id="obsUnidad" required class="w-full border p-2 text-xs rounded-lg outline-none">
-                            <option value="">-- Seleccione --</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Detalle del Reporte</label>
-                        <textarea id="obsDetalle" required rows="2" placeholder="Ej. Fuga en manguera de retorno / Ruido extraño al encender..." class="w-full border p-2 text-xs rounded-lg outline-none"></textarea>
-                    </div>
-                    <button type="submit" class="w-full bg-industrial-500 hover:bg-industrial-600 text-white text-xs font-bold py-2 px-4 rounded-lg transition-all uppercase tracking-wider">
-                        Guardar Reporte
-                    </button>
-                </form>
-            </div>
-
-        </div>
-
-        <!-- COLUMNA DERECHA (2/3): MAQUINARIA Y BITÁCORA -->
-        <div class="lg:col-span-2 space-y-6">
-            
-            <!-- FILTROS DE VISTA -->
-            <div class="flex justify-between items-center bg-white p-3 rounded-xl border border-gray-200">
-                <div class="flex gap-1">
-                    <button id="btnFiltroTodos" onclick="setFiltro('Todos')" class="px-3 py-1 text-xs font-bold rounded-lg transition-all bg-industrial-500 text-white">Todos</button>
-                    <button id="btnFiltroAmarilla" onclick="setFiltro('Amarilla')" class="px-3 py-1 text-xs font-bold rounded-lg transition-all bg-gray-200 text-gray-700">Línea Amarilla</button>
-                    <button id="btnFiltroBlanca" onclick="setFiltro('Blanca')" class="px-3 py-1 text-xs font-bold rounded-lg transition-all bg-gray-200 text-gray-700">Línea Blanca</button>
-                </div>
-                <input type="text" id="buscadorInput" oninput="renderTodo()" placeholder="Buscar equipo..." class="border px-3 py-1 text-xs rounded-lg outline-none w-44">
-            </div>
-
-            <!-- GRILLA DE EQUIPOS -->
-            <div id="gridUnidades" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <!-- Tarjetas de equipos -->
-            </div>
-
-            <!-- BITÁCORA / REPORTES -->
-            <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
-                <h3 class="text-xs font-black text-gray-900 border-b pb-2 uppercase tracking-wider mb-3">
-                    <i class="fa-solid fa-notes-medical text-industrial-500 mr-1"></i> Bitácora e Historial Técnico
-                </h3>
-                <div id="listaObservaciones" class="space-y-3 max-h-96 overflow-y-auto">
-                    <!-- Reportes -->
+            <!-- COLUMNA REGISTRO DE REPORTES (ACCESIBLE PARA AMBOS) -->
+            <div id="comunReportColumn" class="space-y-6 lg:col-span-1">
+                <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
+                    <h3 class="text-xs font-black text-gray-900 border-b pb-2 uppercase tracking-wider mb-3 text-industrial-600"><i class="fa-solid fa-bullhorn mr-1"></i> Reportar Observación Técnico</h3>
+                    <form id="formObservacion" onsubmit="agregarObservacion(event)" class="space-y-3">
+                        <select id="obsUnidad" required class="w-full border p-2 text-xs rounded-lg"></select>
+                        <textarea id="obsDetalle" required rows="2" placeholder="Describa la anomalía o evento técnico detectado..." class="w-full border p-2 text-xs rounded-lg outline-none"></textarea>
+                        <button type="submit" class="w-full bg-industrial-500 hover:bg-industrial-600 text-white text-xs font-black py-2 rounded-lg uppercase">Guardar Reporte</button>
+                    </form>
                 </div>
             </div>
 
-        </div>
+            <!-- COLUMNA VISUALIZACIÓN / DERECHA -->
+            <div id="displayColumn" class="lg:col-span-2 space-y-6">
+                <!-- BUSCADOR RESTRINGIDO PARA ADMIN -->
+                <div id="adminFilters" class="flex justify-between items-center bg-white p-3 rounded-xl border border-gray-200">
+                    <div class="flex gap-1">
+                        <button id="btnFiltroTodos" onclick="setFiltro('Todos')" class="px-3 py-1 text-xs font-bold rounded-lg bg-industrial-500 text-white">Todos</button>
+                        <button id="btnFiltroAmarilla" onclick="setFiltro('Amarilla')" class="px-3 py-1 text-xs font-bold rounded-lg bg-gray-200 text-gray-700">Amarilla</button>
+                        <button id="btnFiltroBlanca" onclick="setFiltro('Blanca')" class="px-3 py-1 text-xs font-bold rounded-lg bg-gray-200 text-gray-700">Blanca</button>
+                    </div>
+                    <input type="text" id="buscadorInput" oninput="renderTodo()" placeholder="Buscar equipo..." class="border px-3 py-1 text-xs rounded-lg outline-none w-40">
+                </div>
 
-    </main>
+                <!-- GRILLA TARJETAS EQUIPOS -->
+                <div id="gridUnidades" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
 
-    <!-- CORE LOGIC & FIREBASE -->
+                <!-- BITÁCORA HISTORIAL -->
+                <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
+                    <h3 class="text-xs font-black text-gray-900 border-b pb-2 uppercase tracking-wider mb-3"><i class="fa-solid fa-clock-rotate-left mr-1 text-industrial-500"></i> Historial Técnico de Observaciones</h3>
+                    <div id="listaObservaciones" class="space-y-3 max-h-80 overflow-y-auto"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- LOGIC CENTRAL & FIREBASE SDK -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // ==========================================
-        // PEGA TU BLOQUE 'firebaseConfig' AQUÍ ABAJO
-        // ==========================================
+        // CONFIGURACIÓN DE FIREBASE CONFIG PROPORCIONADA
         const firebaseConfig = {
             apiKey: "AIzaSyCG6sTwnI3IeV6QkTGTr4W5BxglfWdS2CM",
             authDomain: "control-flota-cart.firebaseapp.com",
             projectId: "control-flota-cart",
             storageBucket: "control-flota-cart.firebasestorage.app",
             messagingSenderId: "640234337587",
-            appId: "1:640234337587:web:f8c06abee19f30160eba46"
+            appId: "1:640234337587:web:f8c06abee19f30160eba46",
+            measurementId: "G-T3SD7JZ1XR"
         };
-        // ==========================================
 
         const app = initializeApp(firebaseConfig);
         const dbFirestore = getFirestore(app);
+        const DOC_ID = "flota_datos";
 
-        const DOC_ID = "flota_datos"; 
-
-        window.db = {
-            unidades: [],
-            operadores: [],
-            observaciones: []
-        };
+        window.db = { unidades: [], operadores: [], observaciones: [], configGral: { logoUrl: "" } };
+        window.sesion = { rol: "", codigoAcceso: "" };
         window.filtroActual = 'Todos';
 
-        // Sincronizar Base de datos con la Nube
-        window.guardarBD = async function() {
-            try {
-                await setDoc(doc(dbFirestore, "configuracion", DOC_ID), db);
-                console.log("¡Sincronizado con Firebase!");
-                renderTodo();
-            } catch (error) {
-                console.error("Error al guardar:", error);
+        // ACCESO INTEGRADO
+        window.validarAcceso = function() {
+            const input = document.getElementById('accessCodeInput').value.trim().toUpperCase();
+            if(!input) return alert("Por favor, ingrese un código válido.");
+
+            if(input === 'CART') {
+                sesion.rol = 'admin';
+                sesion.codigoAcceso = 'CART';
+            } else {
+                sesion.rol = 'operador';
+                sesion.codigoAcceso = input;
             }
-        }
 
-        // Cargar Datos de la Nube
-        window.cargarBD = async function() {
-            try {
-                const docRef = doc(dbFirestore, "configuracion", DOC_ID);
-                const docSnap = await getDoc(docRef);
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('appContent').classList.remove('hidden');
+            document.getElementById('sessionBadge').textContent = sesion.rol === 'admin' ? 'ADMINISTRADOR GENERAL' : `OPERADOR (${sesion.codigoAcceso})`;
 
-                if (docSnap.exists()) {
-                    db = docSnap.data();
-                    console.log("Datos cargados correctamente de Firebase.");
-                } else {
-                    console.log("Iniciando base de datos limpia...");
-                    db = { unidades: [], operadores: [], observaciones: [] };
-                    await guardarBD();
-                }
-                renderTodo();
-            } catch (error) {
-                console.error("Error al cargar:", error);
+            // Ajustar visibilidad según rol
+            if(sesion.rol === 'operador') {
+                document.getElementById('adminFormsColumn').classList.add('hidden');
+                document.getElementById('metricsPanel').classList.add('hidden');
+                document.getElementById('adminFilters').classList.add('hidden');
+                document.getElementById('comunReportColumn').classList.remove('lg:col-span-1');
+                document.getElementById('comunReportColumn').classList.add('lg:col-span-1');
+            } else {
+                document.getElementById('adminFormsColumn').classList.remove('hidden');
+                document.getElementById('metricsPanel').classList.remove('hidden');
+                document.getElementById('adminFilters').classList.remove('hidden');
             }
+
+            renderTodo();
         }
 
-        // --- OPERADORES ---
-        window.agregarOperador = function(e) {
-            e.preventDefault();
-            const nuevo = {
-                id: 'op_' + Date.now(),
-                nombre: document.getElementById('opNombre').value.trim(),
-                licencia: document.getElementById('opLicencia').value.trim()
-            };
-            db.operadores.push(nuevo);
-            document.getElementById('formOperador').reset();
-            guardarBD();
+        window.cerrarSesion = function() {
+            document.getElementById('accessCodeInput').value = "";
+            document.getElementById('appContent').classList.add('hidden');
+            document.getElementById('loginScreen').classList.remove('hidden');
+            sesion = { rol: "", codigoAcceso: "" };
         }
 
-        window.eliminarOperador = function(id) {
-            if (confirm("¿Seguro que desea eliminar al operador?")) {
-                db.operadores = db.operadores.filter(op => op.id !== id);
-                db.unidades.forEach(u => {
-                    if (u.operadorId === id) u.operadorId = "";
-                });
+        // CONTROL LOGO APP
+        window.subirLogo = function() {
+            if(sesion.rol !== 'admin') return;
+            const url = prompt("Pegue la URL del nuevo Logo Corporativo:");
+            if(url !== null) {
+                db.configGral.logoUrl = url.trim();
                 guardarBD();
             }
         }
 
-        // --- UNIDADES ---
+        // FIREBASE SYNC
+        window.guardarBD = async function() {
+            try { await setDoc(doc(dbFirestore, "configuracion", DOC_ID), db); renderTodo(); } catch(e) { console.error(e); }
+        }
+        window.cargarBD = async function() {
+            try {
+                const snap = await getDoc(doc(dbFirestore, "configuracion", DOC_ID));
+                if(snap.exists()) db = snap.data();
+                if(!db.configGral) db.configGral = { logoUrl: "" };
+                renderTodo();
+            } catch(e) { console.error(e); }
+        }
+
+        // OPERADORES
+        window.agregarOperador = function(e) {
+            e.preventDefault();
+            db.operadores.push({
+                id: 'op_' + Date.now(),
+                nombre: document.getElementById('opNombre').value.trim(),
+                licencia: document.getElementById('opLicencia').value.trim(),
+                estado: 'Operativo'
+            });
+            document.getElementById('formOperador').reset();
+            guardarBD();
+        }
+        window.toggleEstadoOp = function(id) {
+            const op = db.operadores.find(o => o.id === id);
+            if(op) { op.estado = op.estado === 'Operativo' ? 'Baja' : 'Operativo'; guardarBD(); }
+        }
+
+        // UNIDADES
         window.agregarUnidad = function(e) {
             e.preventDefault();
-            const nueva = {
+            db.unidades.push({
                 id: 'un_' + Date.now(),
                 codigo: document.getElementById('unidadCodigo').value.trim().toUpperCase(),
                 modelo: document.getElementById('unidadModelo').value.trim(),
@@ -301,290 +294,222 @@
                 valorActual: parseFloat(document.getElementById('unidadValorActual').value) || 0,
                 valorProximo: parseFloat(document.getElementById('unidadValorProximo').value) || 0,
                 operadorId: document.getElementById('unidadOperadorAsignado').value,
-                soat: document.getElementById('unidadSoat').value || "",
-                citv: document.getElementById('unidadCitv').value || "",
-                seguro: document.getElementById('unidadSeguro').value || "",
+                soat: document.getElementById('unidadSoat').value,
+                citv: document.getElementById('unidadCitv').value,
+                seguro: document.getElementById('unidadSeguro').value,
+                cert: document.getElementById('unidadCert').value,
+                customNombre: document.getElementById('unidadCustomNombre').value.trim(),
+                customFecha: document.getElementById('unidadCustomFecha').value,
+                estado: 'Operativo',
+                horasTrabajadasHoy: 0,
+                proyeccionDias: null,
                 foto: null
-            };
-            db.unidades.push(nueva);
+            });
             document.getElementById('formUnidad').reset();
             guardarBD();
         }
 
-        window.eliminarUnidad = function(id) {
-            if (confirm("¿Desea eliminar este equipo definitivamente?")) {
-                db.unidades = db.unidades.filter(u => u.id !== id);
-                db.observaciones = db.observaciones.filter(o => o.unidadId !== id);
+        window.registrarJornadaDiaria = function(id) {
+            const u = db.unidades.find(x => x.id === id);
+            if(!u) return;
+            const unidadLabel = u.tipoMedicion === 'Horometro' ? 'Hrs' : 'Km';
+            
+            const ini = prompt(`Ingrese Lectura INICIAL del día (${unidadLabel}):`, u.valorActual);
+            if (ini === null) return;
+            const fin = prompt(`Ingrese Lectura FINAL del día (${unidadLabel}):`);
+            if (fin === null) return;
+
+            const valIni = parseFloat(ini);
+            const valFin = parseFloat(fin);
+
+            if(!isNaN(valIni) && !isNaN(valFin) && valFin >= valIni) {
+                const trabajadas = valFin - valIni;
+                u.valorActual = valFin;
+                u.horasTrabajadasHoy = trabajadas;
+                
+                const restante = u.valorProximo - valFin;
+                if(restante > 0 && trabajadas > 0) {
+                    u.proyeccionDias = Math.ceil(restante / trabajadas);
+                } else {
+                    u.proyeccionDias = null;
+                }
                 guardarBD();
+            } else {
+                alert("Lecturas inválidas. Asegúrese de que el valor final sea mayor o igual al inicial.");
             }
         }
 
-        window.actualizarLectura = function(id) {
-            const u = db.unidades.find(u => u.id === id);
-            if (!u) return;
-
-            const etiqueta = u.tipoMedicion === 'Horometro' ? 'Horas' : 'Kilómetros';
-            const nuevoVal = prompt(`Lectura actual para ${u.codigo} (Registrado: ${u.valorActual} ${u.tipoMedicion === 'Horometro' ? 'Hrs' : 'Km'}):`, u.valorActual);
-            
-            if (nuevoVal !== null) {
-                const num = parseFloat(nuevoVal);
-                if (!isNaN(num) && num >= u.valorActual) {
-                    u.valorActual = num;
-                    guardarBD();
-                } else {
-                    alert("Por favor ingrese un valor válido y que no sea menor al actual.");
-                }
-            }
+        window.toggleEstadoUnidad = function(id) {
+            const u = db.unidades.find(x => x.id === id);
+            if(u) { u.estado = u.estado === 'Operativo' ? 'Baja' : 'Operativo'; guardarBD(); }
         }
-
-        window.actualizarLimite = function(id) {
-            const u = db.unidades.find(u => u.id === id);
-            if (!u) return;
-
-            const etiqueta = u.tipoMedicion === 'Horometro' ? 'Hrs' : 'Km';
-            const nuevoVal = prompt(`Establecer límite del próximo servicio para ${u.codigo}:`, u.valorProximo);
-            
-            if (nuevoVal !== null) {
-                const num = parseFloat(nuevoVal);
-                if (!isNaN(num) && num >= 0) {
-                    u.valorProximo = num;
-                    guardarBD();
-                } else {
-                    alert("Ingrese un número válido.");
-                }
-            }
-        }
-
-        // --- SUBIDA / ACTUALIZACIÓN DE FOTOS DIRECTAS ---
         window.subirFoto = function(id, tipo) {
-            const url = prompt("Pegue el enlace directo de la imagen para cargarlo (ImgBB, PostImage o cualquier URL web):");
-            if (url !== null) {
-                if (tipo === 'unidad') {
-                    const u = db.unidades.find(u => u.id === id);
-                    if (u) u.foto = url.trim() || null;
-                } else if (tipo === 'observacion') {
-                    const o = db.observaciones.find(o => o.id === id);
-                    if (o) o.foto = url.trim() || null;
-                }
+            const url = prompt("Pegue el enlace directo de la imagen:");
+            if(url !== null) {
+                if(tipo === 'unidad') { const u = db.unidades.find(x => x.id === id); if(u) u.foto = url.trim(); }
+                if(tipo === 'observacion') { const o = db.observaciones.find(x => x.id === id); if(o) o.foto = url.trim(); }
                 guardarBD();
             }
         }
 
-        // --- OBSERVACIONES ---
+        // OBSERVACIONES
         window.agregarObservacion = function(e) {
             e.preventDefault();
-            const nueva = {
+            db.observaciones.push({
                 id: 'obs_' + Date.now(),
                 unidadId: document.getElementById('obsUnidad').value,
                 detalle: document.getElementById('obsDetalle').value.trim(),
-                fecha: new Date().toLocaleDateString('es-PE', { hour: '2-digit', minute: '2-digit' }),
+                fecha: new Date().toLocaleDateString('es-PE'),
+                estado: 'Inicio',
                 foto: null
-            };
-            db.observaciones.push(nueva);
+            });
             document.getElementById('formObservacion').reset();
             guardarBD();
         }
-
-        window.eliminarObservacion = function(id) {
-            if (confirm("¿Eliminar este reporte técnico?")) {
-                db.observaciones = db.observaciones.filter(o => o.id !== id);
-                guardarBD();
-            }
+        window.cambiarEstadoObs = function(id, est) {
+            const o = db.observaciones.find(x => x.id === id);
+            if(o) { o.estado = est; guardarBD(); }
         }
 
-        // --- FILTROS ---
-        window.setFiltro = function(filtro) {
-            filtroActual = filtro;
-            ['Todos', 'Amarilla', 'Blanca'].forEach(f => {
-                const btn = document.getElementById(`btnFiltro${f}`);
-                if (btn) {
-                    if (f === filtro) {
-                        btn.className = "px-3 py-1 text-xs font-bold rounded-lg transition-all bg-industrial-500 text-white";
-                    } else {
-                        btn.className = "px-3 py-1 text-xs font-bold rounded-lg transition-all bg-gray-200 text-gray-700";
-                    }
-                }
-            });
-            renderTodo();
-        }
+        window.setFiltro = function(f) { filtroActual = f; renderTodo(); }
 
-        // --- RENDER COMPLETO ---
+        // RENDERS
         window.renderTodo = function() {
-            // 1. Renderizar select de operadores en formulario de Equipos
-            const selectOp = document.getElementById('unidadOperadorAsignado');
-            if (selectOp) {
-                const valorSeleccionado = selectOp.value;
-                selectOp.innerHTML = '<option value="">-- Sin Asignar / Ninguno --</option>' +
-                    db.operadores.map(op => `<option value="${op.id}">${op.nombre} (${op.licencia})</option>`).join('');
-                selectOp.value = valorSeleccionado;
+            // Logo corporativo superior
+            if(db.configGral?.logoUrl) {
+                document.getElementById('appLogoIcon').classList.add('hidden');
+                document.getElementById('appLogoImg').src = db.configGral.logoUrl;
+                document.getElementById('appLogoImg').classList.remove('hidden');
             }
 
-            // 2. Renderizar lista de operadores registrados
-            const listOp = document.getElementById('listaOperadores');
-            if (listOp) {
-                listOp.innerHTML = db.operadores.map(op => `
-                    <div class="flex justify-between items-center text-xs bg-gray-50 p-2 border rounded-lg">
-                        <span class="font-semibold">${op.nombre} <span class="text-gray-400 text-[10px] ml-1">(${op.licencia})</span></span>
-                        <button onclick="eliminarOperador('${op.id}')" class="text-red-500 hover:text-red-700"><i class="fa-solid fa-trash-can"></i></button>
+            // Contadores globales
+            document.getElementById('mEquiposOp').textContent = db.unidades.filter(x => x.estado === 'Operativo').length;
+            document.getElementById('mEquiposBaja').textContent = db.unidades.filter(x => x.estado === 'Baja').length;
+            document.getElementById('mOpsOp').textContent = db.operadores.filter(x => x.estado === 'Operativo').length;
+            document.getElementById('mOpsBaja').textContent = db.operadores.filter(x => x.estado === 'Baja').length;
+
+            // Listas auxiliares en formularios
+            document.getElementById('listaOperadores').innerHTML = db.operadores.map(o => `
+                <div class="flex justify-between items-center text-[11px] bg-gray-50 p-1 border rounded">
+                    <span class="${o.estado === 'Baja' ? 'line-through text-red-500' : ''}">${o.nombre}</span>
+                    <button onclick="toggleEstadoOp('${o.id}')" class="text-[9px] font-bold uppercase ${o.estado === 'Operativo' ? 'text-red-500' : 'text-emerald-600'}">${o.estado === 'Operativo' ? 'Baja' : 'Alta'}</button>
+                </div>
+            `).join('');
+
+            document.getElementById('unidadOperadorAsignado').innerHTML = '<option value="">-- Asignar Operador --</option>' + db.operadores.filter(x => x.estado === 'Operativo').map(o => `<option value="${o.id}">${o.nombre}</option>`).join('');
+            
+            const unidadesParaReporte = sesion.col === 'operador' ? db.unidades.filter(x => x.codigo === sesion.codigoAcceso) : db.unidades;
+            document.getElementById('obsUnidad').innerHTML = '<option value="">-- Seleccionar Equipo --</option>' + unidadesParaReporte.map(u => `<option value="${u.id}">${u.codigo}</option>`).join('');
+
+            // Filtrar Tarjetas de Equipos
+            let visuales = db.unidades;
+            if(sesion.rol === 'operador') {
+                visuales = visuales.filter(x => x.codigo === sesion.codigoAcceso);
+            } else {
+                if(filtroActual !== 'Todos') visuales = visuales.filter(x => x.linea === filtroActual);
+                const bus = document.getElementById('buscadorInput')?.value.toLowerCase();
+                if(bus) visuales = visuales.filter(x => x.codigo.toLowerCase().includes(bus) || x.modelo.toLowerCase().includes(bus));
+            }
+
+            const hoy = new Date();
+            document.getElementById('gridUnidades').innerHTML = visuales.map(u => {
+                const op = db.operadores.find(o => o.id === u.operadorId);
+                const labelM = u.tipoMedicion === 'Horometro' ? 'Hrs' : 'Km';
+                const rest = u.valorProximo - u.valorActual;
+
+                // Alerta de mantenimiento por color
+                let colorBorder = "border-emerald-500";
+                if(rest <= 0 || u.estado === 'Baja') colorBorder = "border-red-500";
+                else if(rest <= (u.tipoMedicion === 'Horometro' ? 50 : 500)) colorBorder = "border-amber-500";
+
+                // Validaciones de fechas de documentos
+                const checkDoc = (fStr) => {
+                    if(!fStr) return { c: 'text-gray-400', txt: 'N/R' };
+                    const f = new Date(fStr);
+                    if(f <= hoy) return { c: 'text-red-600 font-bold', txt: fStr + ' (VENCIDO)' };
+                    return { c: 'text-emerald-600', txt: fStr };
+                };
+
+                const s = checkDoc(u.soat); const c = checkDoc(u.citv);
+                const seg = checkDoc(u.seguro); const cer = checkDoc(u.cert);
+                const cust = u.customFecha ? checkDoc(u.customFecha) : null;
+
+                return `
+                    <div class="bg-white rounded-xl overflow-hidden border-2 ${colorBorder} p-4 space-y-3 shadow-sm">
+                        <div class="flex gap-3">
+                            <div class="w-16 h-16 rounded-lg bg-gray-100 border relative group overflow-hidden flex-shrink-0 cursor-pointer" onclick="subirFoto('${u.id}', 'unidades')">
+                                <img src="${u.foto || 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=200'}" class="w-full h-full object-cover">
+                                <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 text-white text-[8px] flex items-center justify-center font-bold">FOTO</div>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex justify-between"><span class="text-xs font-black font-mono bg-gray-900 text-white px-1.5 rounded">${u.codigo}</span><span class="text-[9px] font-bold text-gray-400 uppercase">${u.estado}</span></div>
+                                <h4 class="text-xs font-black truncate mt-1">${u.modelo}</h4>
+                                <p class="text-[10px] text-gray-500 font-bold truncate">Op: ${op ? op.nombre : 'No asignado'}</p>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-1.5 text-[11px] border-y py-1.5 font-semibold">
+                            <div><p class="text-[9px] text-gray-400 uppercase">Lectura</p><span>${u.valorActual} ${labelM}</span></div>
+                            <div><p class="text-[9px] text-gray-400 uppercase">Resta Mto.</p><span class="${rest <= 0 ? 'text-red-600 font-bold':''}">${rest <= 0 ? 'REQUERIDO' : rest.toFixed(1) + ' ' + labelM}</span></div>
+                            <div><p class="text-[9px] text-gray-400 uppercase">Trabajo Hoy</p><span>${u.horasTrabajadasHoy || 0} ${labelM}</span></div>
+                            <div><p class="text-[9px] text-gray-400 uppercase">Días estimados</p><span>${u.proyeccionDias ? u.proyeccionDias + ' Días' : 'Calculando...'}</span></div>
+                        </div>
+                        <div class="text-[9px] grid grid-cols-2 gap-x-2 gap-y-0.5 font-bold bg-gray-50 p-1.5 rounded">
+                            <div>SOAT: <span class="${s.c}">${s.txt}</span></div>
+                            <div>CITV: <span class="${c.c}">${c.txt}</span></div>
+                            <div>SEGURO: <span class="${seg.c}">${seg.txt}</span></div>
+                            <div>CERT. OP: <span class="${cer.c}">${cer.txt}</span></div>
+                            ${cust ? `<div class="col-span-2 text-indigo-600 uppercase font-black">${u.customNombre || 'ALERT'}: <span class="${cust.c}">${cust.txt}</span></div>` : ''}
+                        </div>
+                        <div class="flex gap-2 pt-1">
+                            <button onclick="registrarJornadaDiaria('${u.id}')" class="w-full bg-industrial-500 text-gray-950 font-black py-1.5 text-[10px] rounded uppercase tracking-wider">Registrar Jornada (In/Fin)</button>
+                            ${sesion.rol === 'admin' ? `<button onclick="toggleEstadoUnidad('${u.id}')" class="text-[9px] px-2 border rounded font-bold uppercase text-red-600 hover:bg-red-50">${u.estado === 'Operativo' ? 'Baja' : 'Alta'}</button>`:''}
+                        </div>
                     </div>
-                `).join('');
-            }
+                `;
+            }).join('');
 
-            // 3. Renderizar select de equipos en formulario de observaciones
-            const selectObs = document.getElementById('obsUnidad');
-            if (selectObs) {
-                selectObs.innerHTML = '<option value="">-- Seleccione un Equipo --</option>' +
-                    db.unidades.map(u => `<option value="${u.id}">${u.codigo} - ${u.modelo}</option>`).join('');
-            }
+            // Renderizado de la Bitácora de Observaciones
+            const obsVisibles = sesion.rol === 'operador' ? db.observaciones.filter(o => {
+                const u = db.unidades.find(x => x.id === o.unidadId);
+                return u && u.codigo === sesion.codigoAcceso;
+            }) : db.observaciones;
 
-            // 4. Filtrar y buscar unidades
-            const buscador = document.getElementById('buscadorInput')?.value.toLowerCase() || "";
-            let unidadesVisibles = db.unidades;
+            document.getElementById('listaObservaciones').innerHTML = obsVisibles.slice().reverse().map(o => {
+                const u = db.unidades.find(x => x.id === o.unidadId);
+                let badgeC = "bg-blue-100 text-blue-800";
+                if(o.estado === 'En Proceso') badgeC = "bg-amber-100 text-amber-800";
+                if(o.estado === 'Completo') badgeC = "bg-emerald-100 text-emerald-800";
 
-            if (filtroActual !== 'Todos') {
-                unidadesVisibles = unidadesVisibles.filter(u => u.linea === filtroActual);
-            }
-            if (buscador) {
-                unidadesVisibles = unidadesVisibles.filter(u => u.codigo.toLowerCase().includes(buscador) || u.modelo.toLowerCase().includes(buscador));
-            }
-
-            // 5. Renderizar tarjetas de unidades
-            const grid = document.getElementById('gridUnidades');
-            if (grid) {
-                if (unidadesVisibles.length === 0) {
-                    grid.innerHTML = '<p class="col-span-2 text-center text-xs text-gray-400 font-bold bg-white p-6 rounded-xl border border-dashed">No hay equipos que mostrar.</p>';
-                } else {
-                    grid.innerHTML = unidadesVisibles.map(u => {
-                        const opAsignado = db.operadores.find(o => o.id === u.operadorId);
-                        const nombreOp = opAsignado ? opAsignado.nombre : "Sin Operador Asignado";
-                        const restante = u.valorProximo - u.valorActual;
-                        const unidadMedida = u.tipoMedicion === 'Horometro' ? 'Hrs' : 'Km';
-                        
-                        let colorEstado = "border-emerald-500";
-                        let bgRestante = "bg-emerald-50 text-emerald-800";
-                        if (restante <= 0) {
-                            colorEstado = "border-red-500 animate-pulse";
-                            bgRestante = "bg-red-100 text-red-800 font-black";
-                        } else if (restante <= (u.tipoMedicion === 'Horometro' ? 50 : 500)) {
-                            colorEstado = "border-amber-500";
-                            bgRestante = "bg-amber-100 text-amber-800";
-                        }
-
-                        const imgUrl = u.foto || 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=300';
-
-                        return `
-                            <div class="bg-white rounded-xl overflow-hidden border-2 ${colorEstado} shadow-sm space-y-3 p-4">
-                                <div class="flex gap-3">
-                                    <div class="w-20 h-20 rounded-lg overflow-hidden border bg-gray-100 flex-shrink-0 relative group">
-                                        <img src="${imgUrl}" class="w-full h-full object-cover">
-                                        <button onclick="subirFoto('${u.id}', 'unidad')" class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[9px] font-bold">
-                                            <i class="fa-solid fa-camera"></i>
-                                        </button>
-                                    </div>
-                                    <div class="flex-1 min-w-0">
-                                        <div class="flex justify-between items-start">
-                                            <span class="text-[10px] font-black tracking-wider uppercase bg-gray-900 text-white px-2 py-0.5 rounded font-mono">${u.codigo}</span>
-                                            <span class="text-[9px] font-bold text-gray-400 uppercase">${u.linea}</span>
-                                        </div>
-                                        <h4 class="text-sm font-black text-gray-900 mt-1 truncate">${u.modelo}</h4>
-                                        <p class="text-[10px] text-gray-500 font-bold truncate"><i class="fa-solid fa-user-gear mr-1"></i>${nombreOp}</p>
-                                    </div>
-                                </div>
-
-                                <div class="grid grid-cols-2 gap-2 text-xs border-t border-b py-2">
-                                    <div>
-                                        <p class="text-[9px] text-gray-400 font-bold uppercase">Lectura Actual</p>
-                                        <p class="font-bold text-gray-900">${u.valorActual} ${unidadMedida}</p>
-                                    </div>
-                                    <div>
-                                        <p class="text-[9px] text-gray-400 font-bold uppercase">Próximo Mto.</p>
-                                        <p class="font-bold text-gray-900">${u.valorProximo} ${unidadMedida}</p>
-                                    </div>
-                                </div>
-
-                                <div class="flex justify-between items-center text-xs p-2 rounded-lg ${bgRestante}">
-                                    <span>Resta para Servicio:</span>
-                                    <span class="font-mono font-bold">${restante <= 0 ? 'MTO. REQUERIDO VENCIDO' : restante.toFixed(1) + ' ' + unidadMedida}</span>
-                                </div>
-
-                                <div class="grid grid-cols-3 gap-1 text-[8px] font-bold text-gray-500">
-                                    <div>SOAT: <span class="text-gray-900">${u.soat || 'N/R'}</span></div>
-                                    <div>CITV: <span class="text-gray-900">${u.citv || 'N/R'}</span></div>
-                                    <div>SEG.: <span class="text-gray-900">${u.seguro || 'N/R'}</span></div>
-                                </div>
-
-                                <div class="flex justify-between items-center pt-1 border-t gap-1.5">
-                                    <button onclick="actualizarLectura('${u.id}')" class="bg-industrial-500 hover:bg-industrial-600 text-white font-bold py-1 px-2.5 rounded text-[10px] flex items-center gap-1">
-                                        <i class="fa-solid fa-gauge"></i> Lectura
-                                    </button>
-                                    <button onclick="actualizarLimite('${u.id}')" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-1 px-2.5 rounded text-[10px] flex items-center gap-1">
-                                        <i class="fa-solid fa-clock-rotate-left"></i> Cambiar Límite
-                                    </button>
-                                    <button onclick="eliminarUnidad('${u.id}')" class="text-red-500 hover:text-red-700 text-xs p-1 ml-auto">
-                                        <i class="fa-solid fa-trash-can"></i>
-                                    </button>
-                                </div>
+                return `
+                    <div class="text-xs bg-gray-50 border p-2.5 rounded-lg flex justify-between gap-3 relative group">
+                        <div class="space-y-1">
+                            <div class="flex items-center gap-2">
+                                <span class="bg-gray-900 text-white text-[9px] px-1 rounded font-mono font-bold">${u ? u.codigo : 'Removido'}</span>
+                                <span class="text-[9px] text-gray-400 font-bold">${o.fecha}</span>
+                                <span class="text-[9px] font-black uppercase px-1 rounded ${badgeC}">${o.estado}</span>
                             </div>
-                        `;
-                    }).join('');
-                }
-            }
-
-            // 6. Renderizar bitácora de observaciones
-            const listObs = document.getElementById('listaObservaciones');
-            if (listObs) {
-                if (db.observaciones.length === 0) {
-                    listObs.innerHTML = '<p class="text-xs text-gray-400 font-bold text-center py-4 bg-gray-50 rounded-xl border border-dashed">No hay reportes ingresados.</p>';
-                } else {
-                    listObs.innerHTML = db.observaciones.slice().reverse().map(o => {
-                        const unidad = db.unidades.find(u => u.id === o.unidadId);
-                        const codigoUnidad = unidad ? unidad.codigo : "Equipo Removido";
-                        const imgUrl = o.foto || "";
-
-                        return `
-                            <div class="bg-gray-50 rounded-lg p-3 border flex justify-between gap-3 relative hover:shadow-sm transition-all">
-                                <div class="flex-1 min-w-0">
-                                    <div class="flex items-center gap-2 mb-1">
-                                        <span class="text-[9px] font-black bg-gray-900 text-white px-1.5 py-0.5 rounded font-mono">${codigoUnidad}</span>
-                                        <span class="text-[9px] font-bold text-gray-400">${o.fecha}</span>
-                                    </div>
-                                    <p class="text-xs text-gray-700 font-medium leading-normal">${o.detalle}</p>
-                                    <div class="flex gap-2 mt-2">
-                                        <button onclick="subirFoto('${o.id}', 'observacion')" class="text-[9px] font-bold text-industrial-600 hover:underline">
-                                            <i class="fa-solid fa-image"></i> ${o.foto ? 'Editar Foto' : 'Cargar Foto'}
-                                        </button>
-                                        <button onclick="eliminarObservacion('${o.id}')" class="text-[9px] font-bold text-red-500 hover:underline">
-                                            <i class="fa-solid fa-trash"></i> Eliminar
-                                        </button>
-                                    </div>
-                                </div>
-                                ${imgUrl ? `
-                                    <div class="w-16 h-16 rounded overflow-hidden border bg-white flex-shrink-0">
-                                        <img src="${imgUrl}" class="w-full h-full object-cover">
-                                    </div>
-                                ` : ''}
+                            <p class="text-gray-700 font-medium leading-tight">${o.detalle}</p>
+                            <div class="flex gap-2 text-[9px] font-bold pt-1">
+                                <button onclick="subirFoto('${o.id}','observacion')" class="text-industrial-600"><i class="fa-solid fa-camera"></i> Foto</button>
+                                ${sesion.rol === 'admin' ? `
+                                    <button onclick="cambiarEstadoObs('${o.id}','Inicio')" class="text-blue-600">Inicio</button>
+                                    <button onclick="cambiarEstadoObs('${o.id}','En Proceso')" class="text-amber-600">Proceso</button>
+                                    <button onclick="cambiarEstadoObs('${o.id}','Completo')" class="text-emerald-600">Completo</button>
+                                `:''}
                             </div>
-                        `;
-                    }).join('');
-                }
-            }
-        }
+                        </div>
+                        ${o.foto ? `<img src="${o.foto}" class="w-12 h-12 object-cover border rounded bg-white flex-shrink-0">` : ''}
+                    </div>
+                `;
+            }).join('');
+        };
 
         window.compartirApp = function() {
-            if (navigator.share) {
-                navigator.share({
-                    title: 'CART - Gestión de Flota',
-                    url: window.location.href
-                }).catch(console.error);
-            } else {
-                navigator.clipboard.writeText(window.location.href);
-                alert("¡Enlace copiado al portapapeles para compartir con el equipo!");
-            }
+            navigator.clipboard.writeText(window.location.href);
+            alert("¡Enlace de acceso copiado!");
         }
 
-        window.onload = function() {
-            cargarBD();
-        };
+        window.onload = function() { cargarBD(); };
     </script>
 </body>
 </html>
