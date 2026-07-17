@@ -8,11 +8,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome para Iconos -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- FIREBASE SDK COMPAT (Soluciona el problema de los módulos) -->
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-
     <script>
         tailwind.config = {
             theme: {
@@ -191,9 +186,11 @@
         </main>
     </div>
 
-    <!-- LÓGICA DE CONTROL GLOBAL -->
-    <script>
-        // Inicialización de Firebase con librería Compat
+    <!-- SCRIPT CENTRAL MODULAR CON ENLACE GLOBAL SEGURO -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
         const firebaseConfig = {
             apiKey: "AIzaSyCG6sTwnI3IeV6QkTGTr4W5BxglfWdS2CM",
             authDomain: "control-flota-cart.firebaseapp.com",
@@ -204,33 +201,33 @@
             measurementId: "G-T3SD7JZ1XR"
         };
 
-        firebase.initializeApp(firebaseConfig);
-        const dbFirestore = firebase.firestore();
+        const app = initializeApp(firebaseConfig);
+        const dbFirestore = getFirestore(app);
         const DOC_ID = "flota_datos";
 
-        // Estructuras de datos globales y limpias
+        // Inicializamos los objetos globales adjuntados a window
         window.db = { unidades: [], operadores: [], observaciones: [], configGral: { logoUrl: "" } };
         window.sesion = { rol: "", codigoAcceso: "" };
         window.filtroActual = 'Todos';
 
-        // ACCESO Y ROLES
+        // EXPOSICIÓN GLOBAL DE FUNCIONES
         window.validarAcceso = function() {
             const input = document.getElementById('accessCodeInput').value.trim().toUpperCase();
             if(!input) return alert("Por favor, ingrese un código válido.");
 
             if(input === 'CART') {
-                sesion.rol = 'admin';
-                sesion.codigoAcceso = 'CART';
+                window.sesion.rol = 'admin';
+                window.sesion.codigoAcceso = 'CART';
             } else {
-                sesion.rol = 'operador';
-                sesion.codigoAcceso = input;
+                window.sesion.rol = 'operador';
+                window.sesion.codigoAcceso = input;
             }
 
             document.getElementById('loginScreen').classList.add('hidden');
             document.getElementById('appContent').classList.remove('hidden');
-            document.getElementById('sessionBadge').textContent = sesion.rol === 'admin' ? 'ADMINISTRADOR GENERAL' : `OPERADOR (${sesion.codigoAcceso})`;
+            document.getElementById('sessionBadge').textContent = window.sesion.rol === 'admin' ? 'ADMINISTRADOR GENERAL' : `OPERADOR (${window.sesion.codigoAcceso})`;
 
-            if(sesion.rol === 'operador') {
+            if(window.sesion.rol === 'operador') {
                 document.getElementById('adminFormsColumn').classList.add('hidden');
                 document.getElementById('metricsPanel').classList.add('hidden');
                 document.getElementById('adminFilters').classList.add('hidden');
@@ -240,53 +237,50 @@
                 document.getElementById('adminFilters').classList.remove('hidden');
             }
 
-            renderTodo();
+            window.renderTodo();
         }
 
         window.cerrarSesion = function() {
             document.getElementById('accessCodeInput').value = "";
             document.getElementById('appContent').classList.add('hidden');
             document.getElementById('loginScreen').classList.remove('hidden');
-            sesion = { rol: "", codigoAcceso: "" };
+            window.sesion = { rol: "", codigoAcceso: "" };
         }
 
-        // GUARDADO Y PERSISTENCIA (Asegurada globalmente)
         window.guardarBD = async function() {
-            try { 
-                await dbFirestore.collection("configuracion").doc(DOC_ID).set(db); 
-                renderTodo(); 
-            } catch(e) { 
-                console.error("Error al guardar en Firebase:", e); 
+            try {
+                await setDoc(doc(dbFirestore, "configuracion", DOC_ID), window.db);
+                window.renderTodo();
+            } catch(e) {
+                console.error("Error al guardar en Firebase:", e);
             }
         }
 
         window.cargarBD = async function() {
             try {
-                const snap = await dbFirestore.collection("configuracion").doc(DOC_ID).get();
-                if(snap.exists) {
-                    db = snap.data();
+                const snap = await getDoc(doc(dbFirestore, "configuracion", DOC_ID));
+                if(snap.exists()) {
+                    window.db = snap.data();
                 }
-                if(!db.unidades) db.unidades = [];
-                if(!db.operadores) db.operadores = [];
-                if(!db.observaciones) db.observaciones = [];
-                if(!db.configGral) db.configGral = { logoUrl: "" };
-                renderTodo();
-            } catch(e) { 
-                console.error("Error al cargar de Firebase:", e); 
+                if(!window.db.unidades) window.db.unidades = [];
+                if(!window.db.operadores) window.db.operadores = [];
+                if(!window.db.observaciones) window.db.observaciones = [];
+                if(!window.db.configGral) window.db.configGral = { logoUrl: "" };
+                window.renderTodo();
+            } catch(e) {
+                console.error("Error al cargar de Firebase:", e);
             }
         }
 
-        // CAMBIAR LOGO
         window.subirLogo = function() {
-            if(sesion.rol !== 'admin') return;
+            if(window.sesion.rol !== 'admin') return;
             const url = prompt("Pegue la URL directa de la imagen para el Logo Corporativo:");
             if(url !== null) {
-                db.configGral.logoUrl = url.trim();
-                guardarBD();
+                window.db.configGral.logoUrl = url.trim();
+                window.guardarBD();
             }
         }
 
-        // GESTIÓN DE OPERADORES
         window.agregarOperador = function(e) {
             e.preventDefault();
             const nuevoOp = {
@@ -295,30 +289,28 @@
                 licencia: document.getElementById('opLicencia').value.trim(),
                 estado: 'Operativo'
             };
-            db.operadores.push(nuevoOp);
+            window.db.operadores.push(nuevoOp);
             document.getElementById('formOperador').reset();
-            guardarBD();
+            window.guardarBD();
         }
 
         window.toggleEstadoOp = function(id) {
-            const op = db.operadores.find(o => o.id === id);
-            if(op) { 
-                op.estado = op.estado === 'Operativo' ? 'Baja' : 'Operativo'; 
-                guardarBD(); 
+            const op = window.db.operadores.find(o => o.id === id);
+            if(op) {
+                op.estado = op.estado === 'Operativo' ? 'Baja' : 'Operativo';
+                window.guardarBD();
             }
         }
 
-        // GESTIÓN DE UNIDADES
         window.agregarUnidad = function(e) {
             e.preventDefault();
-            
             const checkboxes = document.querySelectorAll('.check-op-asignado');
             const listaIdsSeleccionados = [];
             checkboxes.forEach(cb => {
                 if(cb.checked) listaIdsSeleccionados.push(cb.value);
             });
 
-            db.unidades.push({
+            window.db.unidades.push({
                 id: 'un_' + Date.now(),
                 codigo: document.getElementById('unidadCodigo').value.trim().toUpperCase(),
                 modelo: document.getElementById('unidadModelo').value.trim(),
@@ -326,7 +318,7 @@
                 tipoMedicion: document.getElementById('unidadMedicion').value,
                 valorActual: parseFloat(document.getElementById('unidadValorActual').value) || 0,
                 valorProximo: parseFloat(document.getElementById('unidadValorProximo').value) || 0,
-                operadoresIds: listaIdsSeleccionados, 
+                operadoresIds: listaIdsSeleccionados,
                 soat: document.getElementById('unidadSoat').value,
                 citv: document.getElementById('unidadCitv').value,
                 seguro: document.getElementById('unidadSeguro').value,
@@ -339,11 +331,11 @@
                 foto: null
             });
             document.getElementById('formUnidad').reset();
-            guardarBD();
+            window.guardarBD();
         }
 
         window.registrarJornadaDiaria = function(id) {
-            const u = db.unidades.find(x => x.id === id);
+            const u = window.db.unidades.find(x => x.id === id);
             if(!u) return;
             const unidadLabel = u.tipoMedicion === 'Horometro' ? 'Hrs' : 'Km';
             
@@ -366,85 +358,81 @@
                 } else {
                     u.proyeccionDias = null;
                 }
-                guardarBD();
+                window.guardarBD();
             } else {
                 alert("Lecturas inválidas. Verifique los valores.");
             }
         }
 
         window.toggleEstadoUnidad = function(id) {
-            const u = db.unidades.find(x => x.id === id);
-            if(u) { u.estado = u.estado === 'Operativo' ? 'Baja' : 'Operativo'; guardarBD(); }
+            const u = window.db.unidades.find(x => x.id === id);
+            if(u) { u.estado = u.estado === 'Operativo' ? 'Baja' : 'Operativo'; window.guardarBD(); }
         }
 
-        // SUBIDA IMÁGENES (CORREGIDA DESDE TARJETAS)
         window.subirFoto = function(id, tipo) {
             const url = prompt("Pegue el enlace directo de la imagen (URL):");
             if(url !== null) {
-                if(tipo === 'unidad') { 
-                    const u = db.unidades.find(x => x.id === id); 
-                    if(u) u.foto = url.trim(); 
+                if(tipo === 'unidad') {
+                    const u = window.db.unidades.find(x => x.id === id);
+                    if(u) u.foto = url.trim();
                 }
-                if(tipo === 'observacion') { 
-                    const o = db.observaciones.find(x => x.id === id); 
-                    if(o) o.foto = url.trim(); 
+                if(tipo === 'observacion') {
+                    const o = window.db.observaciones.find(x => x.id === id);
+                    if(o) o.foto = url.trim();
                 }
-                guardarBD();
+                window.guardarBD();
             }
         }
 
-        // GESTIÓN DE OBSERVACIONES
         window.agregarObservacion = function(e) {
             e.preventDefault();
-            db.observaciones.push({
+            window.db.observaciones.push({
                 id: 'obs_' + Date.now(),
                 unidadId: document.getElementById('obsUnidad').value,
-                textId: 'obs_' + Date.now(),
                 detalle: document.getElementById('obsDetalle').value.trim(),
                 fecha: new Date().toLocaleDateString('es-PE'),
                 estado: 'Inicio',
                 foto: null
             });
             document.getElementById('formObservacion').reset();
-            guardarBD();
+            window.guardarBD();
         }
 
         window.cambiarEstadoObs = function(id, est) {
-            const o = db.observaciones.find(x => x.id === id);
-            if(o) { o.estado = est; guardarBD(); }
+            const o = window.db.observaciones.find(x => x.id === id);
+            if(o) { o.estado = est; window.guardarBD(); }
         }
 
-        window.setFiltro = function(f) { filtroActual = f; renderTodo(); }
+        window.setFiltro = function(f) { window.filtroActual = f; window.renderTodo(); }
 
-        // RENDERS DE INTERFAZ GRÁFICA
         window.renderTodo = function() {
             // Render de Logo
-            if(db.configGral && db.configGral.logoUrl) {
+            if(window.db.configGral && window.db.configGral.logoUrl) {
                 document.getElementById('appLogoIcon').classList.add('hidden');
-                document.getElementById('appLogoImg').src = db.configGral.logoUrl;
+                document.getElementById('appLogoImg').src = window.db.configGral.logoUrl;
                 document.getElementById('appLogoImg').classList.remove('hidden');
             } else {
                 document.getElementById('appLogoIcon').classList.remove('hidden');
                 document.getElementById('appLogoImg').classList.add('hidden');
             }
 
-            // Contadores superiores
-            document.getElementById('mEquiposOp').textContent = db.unidades.filter(x => x.estado === 'Operativo').length;
-            document.getElementById('mEquiposBaja').textContent = db.unidades.filter(x => x.estado === 'Baja').length;
-            document.getElementById('mOpsOp').textContent = db.operadores.filter(x => x.estado === 'Operativo').length;
-            document.getElementById('mOpsBaja').textContent = db.operadores.filter(x => x.estado === 'Baja').length;
+            // Indicadores numéricos
+            document.getElementById('mEquiposOp').textContent = window.db.unidades.filter(x => x.estado === 'Operativo').length;
+            document.getElementById('mEquiposBaja').textContent = window.db.unidades.filter(x => x.estado === 'Baja').length;
+            document.getElementById('mOpsOp').textContent = window.db.operadores.filter(x => x.estado === 'Operativo').length;
+            document.getElementById('mOpsBaja').textContent = window.db.operadores.filter(x => x.estado === 'Baja').length;
 
             // Lista lateral Administrador
-            document.getElementById('listaOperadores').innerHTML = db.operadores.map(o => `
+            document.getElementById('listaOperadores').innerHTML = window.db.operadores.map(o => `
                 <div class="flex justify-between items-center text-[11px] bg-gray-50 p-1 border rounded">
                     <span class="${o.estado === 'Baja' ? 'line-through text-red-500' : ''}">${o.nombre}</span>
                     <button type="button" onclick="toggleEstadoOp('${o.id}')" class="text-[9px] font-bold uppercase ${o.estado === 'Operativo' ? 'text-red-500' : 'text-emerald-600'}">${o.estado === 'Operativo' ? 'Baja' : 'Alta'}</button>
                 </div>
             `).join('');
 
-            // Checkboxes de Selección Múltiple (¡Aquí se reflejará inmediatamente al guardar!)
+            // Checkboxes múltiples de Operadores
             const contenedorChecks = document.getElementById('contenedorCheckboxesOperadores');
-            const opsDisponibles = db.operadores.filter(x => x.estado === 'Operativo');
+            const opsDisponibles = window.db.operadores.filter(x => x.estado === 'Operativo');
             if(opsDisponibles.length === 0) {
                 contenedorChecks.innerHTML = '<p class="text-[10px] text-gray-400 text-center py-1">No hay operadores activos</p>';
             } else {
@@ -457,15 +445,15 @@
             }
             
             // Selector de unidades para Reportes
-            const unidadesParaReporte = sesion.rol === 'operador' ? db.unidades.filter(x => x.codigo === sesion.codigoAcceso) : db.unidades;
+            const unidadesParaReporte = window.sesion.rol === 'operador' ? window.db.unidades.filter(x => x.codigo === window.sesion.codigoAcceso) : window.db.unidades;
             document.getElementById('obsUnidad').innerHTML = '<option value="">-- Seleccionar Equipo --</option>' + unidadesParaReporte.map(u => `<option value="${u.id}">${u.codigo}</option>`).join('');
 
             // Filtrados de búsqueda
-            let visuales = db.unidades;
-            if(sesion.rol === 'operador') {
-                visuales = visuales.filter(x => x.codigo === sesion.codigoAcceso);
+            let visuales = window.db.unidades;
+            if(window.sesion.rol === 'operador') {
+                visuales = visuales.filter(x => x.codigo === window.sesion.codigoAcceso);
             } else {
-                if(filtroActual !== 'Todos') visuales = visuales.filter(x => x.linea === filtroActual);
+                if(window.filtroActual !== 'Todos') visuales = visuales.filter(x => x.linea === window.filtroActual);
                 const bus = document.getElementById('buscadorInput')?.value.toLowerCase();
                 if(bus) visuales = visuales.filter(x => x.codigo.toLowerCase().includes(bus) || x.modelo.toLowerCase().includes(bus));
             }
@@ -476,7 +464,7 @@
             document.getElementById('gridUnidades').innerHTML = visuales.map(u => {
                 let nombresOps = "No asignado";
                 if(u.operadoresIds && u.operadoresIds.length > 0) {
-                    const filtrados = db.operadores.filter(o => u.operadoresIds.includes(o.id));
+                    const filtrados = window.db.operadores.filter(o => u.operadoresIds.includes(o.id));
                     if(filtrados.length > 0) nombresOps = filtrados.map(f => f.nombre).join(', ');
                 }
 
@@ -526,20 +514,20 @@
                         </div>
                         <div class="flex gap-2 pt-1">
                             <button type="button" onclick="registrarJornadaDiaria('${u.id}')" class="w-full bg-industrial-500 text-gray-950 font-black py-1.5 text-[10px] rounded uppercase tracking-wider">Registrar Jornada</button>
-                            ${sesion.rol === 'admin' ? `<button type="button" onclick="toggleEstadoUnidad('${u.id}')" class="text-[9px] px-2 border rounded font-bold uppercase text-red-600 hover:bg-red-50">${u.estado === 'Operativo' ? 'Baja' : 'Alta'}</button>`:''}
+                            ${window.sesion.rol === 'admin' ? `<button type="button" onclick="toggleEstadoUnidad('${u.id}')" class="text-[9px] px-2 border rounded font-bold uppercase text-red-600 hover:bg-red-50">${u.estado === 'Operativo' ? 'Baja' : 'Alta'}</button>`:''}
                         </div>
                     </div>
                 `;
             }).join('');
 
-            // Renderizado de Historial de Observaciones
-            const obsVisibles = sesion.rol === 'operador' ? db.observaciones.filter(o => {
-                const u = db.unidades.find(x => x.id === o.unidadId);
-                return u && u.codigo === sesion.codigoAcceso;
-            }) : db.observaciones;
+            // Historial de observaciones
+            const obsVisibles = window.sesion.rol === 'operador' ? window.db.observaciones.filter(o => {
+                const u = window.db.unidades.find(x => x.id === o.unidadId);
+                return u && u.codigo === window.sesion.codigoAcceso;
+            }) : window.db.observaciones;
 
             document.getElementById('listaObservaciones').innerHTML = obsVisibles.slice().reverse().map(o => {
-                const u = db.unidades.find(x => x.id === o.unidadId);
+                const u = window.db.unidades.find(x => x.id === o.unidadId);
                 let badgeC = "bg-blue-100 text-blue-800";
                 if(o.estado === 'En Proceso') badgeC = "bg-amber-100 text-amber-800";
                 if(o.estado === 'Completo') badgeC = "bg-emerald-100 text-emerald-800";
@@ -555,7 +543,7 @@
                             <p class="text-gray-700 font-medium leading-tight">${o.detalle}</p>
                             <div class="flex gap-2 text-[9px] font-bold pt-1">
                                 <button type="button" onclick="subirFoto('${o.id}','observacion')" class="text-industrial-600"><i class="fa-solid fa-camera"></i> Subir Foto</button>
-                                ${sesion.rol === 'admin' ? `
+                                ${window.sesion.rol === 'admin' ? `
                                     <button type="button" onclick="cambiarEstadoObs('${o.id}','Inicio')" class="text-blue-600">Inicio</button>
                                     <button type="button" onclick="cambiarEstadoObs('${o.id}','En Proceso')" class="text-amber-600">Proceso</button>
                                     <button type="button" onclick="cambiarEstadoObs('${o.id}','Completo')" class="text-emerald-600">Completo</button>
@@ -573,7 +561,8 @@
             alert("¡Enlace de acceso copiado!");
         }
 
-        window.onload = function() { cargarBD(); };
+        // Ejecutar carga inicial al montar el script
+        window.cargarBD();
     </script>
 </body>
 </html>
