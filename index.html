@@ -4,9 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CART - Gestión Integral de Flotas</title>
-    <!-- Tailwind CSS -->
+    <meta name="description" content="Sistema CART de control y gestión integral de flotas vehiculares e industriales.">
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome para Iconos -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script>
         tailwind.config = {
@@ -23,11 +22,31 @@
             }
         }
     </script>
+    <style>
+        #toastMsg {
+            transition: opacity 0.4s ease, transform 0.4s ease;
+        }
+        #toastMsg.hide {
+            opacity: 0;
+            transform: translateY(20px);
+            pointer-events: none;
+        }
+        #toastMsg.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    </style>
 </head>
 <body class="bg-gray-100 min-h-screen text-gray-900 pb-12">
 
+    <!-- TOAST DE ESTADO -->
+    <div id="toastMsg" class="hide fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-gray-900 text-white text-xs font-bold px-5 py-2.5 rounded-full shadow-xl flex items-center gap-2">
+        <i id="toastIcon" class="fa-solid fa-circle-notch fa-spin"></i>
+        <span id="toastText">Guardando...</span>
+    </div>
+
     <!-- PANTALLA DE INGRESO / LOGIN OBLIGATORIO -->
-    <div id="loginScreen" class="fixed inset-0 bg-gray-950 flex flex-col items-center justify-center z-50 p-4">
+    <div id="loginScreen" class="fixed inset-0 bg-gray-950 flex flex-col items-center justify-center z-40 p-4">
         <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-sm space-y-4 border-t-4 border-industrial-500">
             <div class="text-center">
                 <div class="bg-industrial-500 text-gray-950 w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-2 text-xl shadow">
@@ -38,9 +57,11 @@
             </div>
             <div>
                 <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Código de Acceso / Placa</label>
-                <input type="text" id="accessCodeInput" placeholder="Ej: CART o VOL-01" class="w-full border-2 border-gray-200 p-2 text-xs rounded-xl text-center font-bold tracking-widest uppercase outline-none focus:border-industrial-500">
+                <input type="text" id="accessCodeInput" placeholder="Ej: CART o VOL-01"
+                    class="w-full border-2 border-gray-200 p-2 text-xs rounded-xl text-center font-bold tracking-widest uppercase outline-none focus:border-industrial-500">
             </div>
-            <button onclick="validarAcceso()" class="w-full bg-gray-950 hover:bg-gray-900 text-white text-xs font-black py-2.5 px-4 rounded-xl shadow-md uppercase tracking-wider transition-all">
+            <p id="loginError" class="text-red-500 text-[10px] text-center font-bold hidden">Ingrese un código válido.</p>
+            <button id="btnIngresar" class="w-full bg-gray-950 hover:bg-gray-900 text-white text-xs font-black py-2.5 px-4 rounded-xl shadow-md uppercase tracking-wider transition-all">
                 Ingresar al Sistema
             </button>
         </div>
@@ -52,20 +73,20 @@
         <header class="bg-gray-950 text-white shadow-md border-b-4 border-industrial-500 py-4 px-6 mb-6">
             <div class="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
                 <div class="flex items-center gap-3">
-                    <div class="bg-industrial-500 text-gray-950 p-2 rounded-lg cursor-pointer flex items-center justify-center min-w-[40px] min-h-[40px]" onclick="subirLogo()">
+                    <div id="btnLogo" class="bg-industrial-500 text-gray-950 p-2 rounded-lg cursor-pointer flex items-center justify-center min-w-[40px] min-h-[40px]">
                         <i id="appLogoIcon" class="fa-solid fa-truck-monster text-xl"></i>
-                        <img id="appLogoImg" src="" class="hidden w-8 h-8 object-contain rounded">
+                        <img id="appLogoImg" src="" class="hidden w-8 h-8 object-contain rounded" alt="Logo">
                     </div>
                     <div>
-                        <h1 class="text-lg font-black tracking-wider cursor-pointer" onclick="subirLogo()">CART | CONTROL DE FLOTA</h1>
+                        <h1 id="btnLogoTitle" class="text-lg font-black tracking-wider cursor-pointer">CART | CONTROL DE FLOTA</h1>
                         <p class="text-[9px] text-gray-400 uppercase tracking-widest">Sesión: <span id="sessionBadge" class="text-industrial-500"></span></p>
                     </div>
                 </div>
                 <div class="flex gap-2">
-                    <button onclick="compartirApp()" class="bg-gray-900 hover:bg-gray-800 border border-gray-800 text-gray-300 font-bold py-1.5 px-3 rounded-lg text-xs flex items-center gap-2 transition-all">
+                    <button id="btnCompartir" class="bg-gray-900 hover:bg-gray-800 border border-gray-800 text-gray-300 font-bold py-1.5 px-3 rounded-lg text-xs flex items-center gap-2 transition-all">
                         <i class="fa-solid fa-share-nodes"></i> Compartir
                     </button>
-                    <button onclick="cerrarSesion()" class="bg-red-950 border border-red-900 text-red-200 font-bold py-1.5 px-3 rounded-lg text-xs transition-all">
+                    <button id="btnCerrarSesion" class="bg-red-950 border border-red-900 text-red-200 font-bold py-1.5 px-3 rounded-lg text-xs transition-all">
                         Salir <i class="fa-solid fa-right-from-bracket ml-1"></i>
                     </button>
                 </div>
@@ -93,13 +114,15 @@
         </section>
 
         <main class="max-w-7xl mx-auto px-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
-            
+
             <!-- SECCIÓN FORMULARIOS (SOLO ADMIN) -->
             <div id="adminFormsColumn" class="space-y-6 lg:col-span-1">
                 <!-- REGISTRAR OPERADOR -->
                 <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
-                    <h3 class="text-xs font-black text-gray-900 border-b pb-2 uppercase tracking-wider mb-3 text-industrial-600"><i class="fa-solid fa-user-plus mr-1"></i> 1. Plantilla de Operadores</h3>
-                    <form id="formOperador" onsubmit="agregarOperador(event)" class="space-y-2">
+                    <h3 class="text-xs font-black text-gray-900 border-b pb-2 uppercase tracking-wider mb-3 text-industrial-600">
+                        <i class="fa-solid fa-user-plus mr-1"></i> 1. Plantilla de Operadores
+                    </h3>
+                    <form id="formOperador" class="space-y-2">
                         <input type="text" id="opNombre" required placeholder="Nombre Completo" class="w-full border p-2 text-xs rounded-lg outline-none">
                         <input type="text" id="opLicencia" required placeholder="DNI / Licencia" class="w-full border p-2 text-xs rounded-lg outline-none">
                         <button type="submit" class="w-full bg-gray-950 text-white text-xs font-bold py-2 rounded-lg">Agregar Operador</button>
@@ -109,29 +132,32 @@
 
                 <!-- REGISTRAR EQUIPO -->
                 <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
-                    <h3 class="text-xs font-black text-gray-900 border-b pb-2 uppercase tracking-wider mb-3 text-industrial-600"><i class="fa-solid fa-square-plus mr-1"></i> 2. Registrar Unidad</h3>
-                    <form id="formUnidad" onsubmit="agregarUnidad(event)" class="space-y-2">
+                    <h3 class="text-xs font-black text-gray-900 border-b pb-2 uppercase tracking-wider mb-3 text-industrial-600">
+                        <i class="fa-solid fa-square-plus mr-1"></i> 2. Registrar Unidad
+                    </h3>
+                    <form id="formUnidad" class="space-y-2">
                         <div class="grid grid-cols-2 gap-2">
                             <input type="text" id="unidadCodigo" required placeholder="Código (Ej: VOL-01)" class="w-full border p-2 text-xs rounded-lg uppercase">
                             <input type="text" id="unidadModelo" required placeholder="Modelo (Ej: Volvo FMX)" class="w-full border p-2 text-xs rounded-lg">
                         </div>
                         <div class="grid grid-cols-2 gap-2">
-                            <select id="unidadLinea" class="w-full border p-2 text-xs rounded-lg"><option value="Amarilla">Línea Amarilla</option><option value="Blanca">Línea Blanca</option></select>
-                            <select id="unidadMedicion" class="w-full border p-2 text-xs rounded-lg"><option value="Horometro">Horas (Hrs)</option><option value="Odometro">Kilómetros (Km)</option></select>
+                            <select id="unidadLinea" class="w-full border p-2 text-xs rounded-lg">
+                                <option value="Amarilla">Línea Amarilla</option>
+                                <option value="Blanca">Línea Blanca</option>
+                            </select>
+                            <select id="unidadMedicion" class="w-full border p-2 text-xs rounded-lg">
+                                <option value="Horometro">Horas (Hrs)</option>
+                                <option value="Odometro">Kilómetros (Km)</option>
+                            </select>
                         </div>
                         <div class="grid grid-cols-2 gap-2">
                             <input type="number" id="unidadValorActual" required placeholder="Lectura Inicial Fija" class="w-full border p-2 text-xs rounded-lg">
                             <input type="number" id="unidadValorProximo" required placeholder="Límite Próx. Mto." class="w-full border p-2 text-xs rounded-lg">
                         </div>
-                        
-                        <!-- SELECCIÓN MÚLTIPLE DE OPERADORES -->
                         <div>
                             <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Asignar Uno o Más Operadores:</label>
-                            <div id="contenedorCheckboxesOperadores" class="border rounded-lg p-2 max-h-28 overflow-y-auto space-y-1 bg-gray-50">
-                                <!-- Cargados dinámicamente -->
-                            </div>
+                            <div id="contenedorCheckboxesOperadores" class="border rounded-lg p-2 max-h-28 overflow-y-auto space-y-1 bg-gray-50"></div>
                         </div>
-
                         <div class="grid grid-cols-2 gap-1 text-[10px]">
                             <label>SOAT:<input type="date" id="unidadSoat" class="w-full border p-1 rounded"></label>
                             <label>CITV:<input type="date" id="unidadCitv" class="w-full border p-1 rounded"></label>
@@ -153,8 +179,10 @@
             <!-- COLUMNA REGISTRO DE REPORTES -->
             <div id="comunReportColumn" class="space-y-6 lg:col-span-1">
                 <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
-                    <h3 class="text-xs font-black text-gray-900 border-b pb-2 uppercase tracking-wider mb-3 text-industrial-600"><i class="fa-solid fa-bullhorn mr-1"></i> Reportar Observación Técnico</h3>
-                    <form id="formObservacion" onsubmit="agregarObservacion(event)" class="space-y-3">
+                    <h3 class="text-xs font-black text-gray-900 border-b pb-2 uppercase tracking-wider mb-3 text-industrial-600">
+                        <i class="fa-solid fa-bullhorn mr-1"></i> Reportar Observación Técnico
+                    </h3>
+                    <form id="formObservacion" class="space-y-3">
                         <select id="obsUnidad" required class="w-full border p-2 text-xs rounded-lg"></select>
                         <textarea id="obsDetalle" required rows="2" placeholder="Describa la anomalía o evento técnico detectado..." class="w-full border p-2 text-xs rounded-lg outline-none"></textarea>
                         <button type="submit" class="w-full bg-industrial-500 hover:bg-industrial-600 text-white text-xs font-black py-2 rounded-lg uppercase">Guardar Reporte</button>
@@ -162,407 +190,496 @@
                 </div>
             </div>
 
-            <!-- COLUMNA VISUALIZACIÓN / DERECHA -->
+            <!-- COLUMNA VISUALIZACIÓN -->
             <div id="displayColumn" class="lg:col-span-2 space-y-6">
                 <!-- FILTROS -->
                 <div id="adminFilters" class="flex justify-between items-center bg-white p-3 rounded-xl border border-gray-200">
                     <div class="flex gap-1">
-                        <button id="btnFiltroTodos" onclick="setFiltro('Todos')" class="px-3 py-1 text-xs font-bold rounded-lg bg-industrial-500 text-white">Todos</button>
-                        <button id="btnFiltroAmarilla" onclick="setFiltro('Amarilla')" class="px-3 py-1 text-xs font-bold rounded-lg bg-gray-200 text-gray-700">Amarilla</button>
-                        <button id="btnFiltroBlanca" onclick="setFiltro('Blanca')" class="px-3 py-1 text-xs font-bold rounded-lg bg-gray-200 text-gray-700">Blanca</button>
+                        <button id="btnFiltroTodos"    class="px-3 py-1 text-xs font-bold rounded-lg bg-industrial-500 text-white">Todos</button>
+                        <button id="btnFiltroAmarilla" class="px-3 py-1 text-xs font-bold rounded-lg bg-gray-200 text-gray-700">Amarilla</button>
+                        <button id="btnFiltroBlanca"   class="px-3 py-1 text-xs font-bold rounded-lg bg-gray-200 text-gray-700">Blanca</button>
                     </div>
-                    <input type="text" id="buscadorInput" oninput="renderTodo()" placeholder="Buscar equipo..." class="border px-3 py-1 text-xs rounded-lg outline-none w-40">
+                    <input type="text" id="buscadorInput" placeholder="Buscar equipo..." class="border px-3 py-1 text-xs rounded-lg outline-none w-40">
                 </div>
 
                 <!-- GRILLA TARJETAS EQUIPOS -->
                 <div id="gridUnidades" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
 
-                <!-- BITÁCORA HISTORIAL -->
+                <!-- BITÁCORA -->
                 <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
-                    <h3 class="text-xs font-black text-gray-900 border-b pb-2 uppercase tracking-wider mb-3"><i class="fa-solid fa-clock-rotate-left mr-1 text-industrial-500"></i> Historial Técnico de Observaciones</h3>
+                    <h3 class="text-xs font-black text-gray-900 border-b pb-2 uppercase tracking-wider mb-3">
+                        <i class="fa-solid fa-clock-rotate-left mr-1 text-industrial-500"></i> Historial Técnico de Observaciones
+                    </h3>
                     <div id="listaObservaciones" class="space-y-3 max-h-80 overflow-y-auto"></div>
                 </div>
             </div>
         </main>
     </div>
 
-    <!-- SCRIPT CENTRAL MODULAR CON ENLACE GLOBAL SEGURO -->
+    <!-- SCRIPT PRINCIPAL -->
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { initializeApp }             from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const firebaseConfig = {
-            apiKey: "AIzaSyCG6sTwnI3IeV6QkTGTr4W5BxglfWdS2CM",
-            authDomain: "control-flota-cart.firebaseapp.com",
-            projectId: "control-flota-cart",
-            storageBucket: "control-flota-cart.firebasestorage.app",
+            apiKey:            "AIzaSyCG6sTwnI3IeV6QkTGTr4W5BxglfWdS2CM",
+            authDomain:        "control-flota-cart.firebaseapp.com",
+            projectId:         "control-flota-cart",
+            storageBucket:     "control-flota-cart.firebasestorage.app",
             messagingSenderId: "640234337587",
-            appId: "1:640234337587:web:f8c06abee19f30160eba46",
-            measurementId: "G-T3SD7JZ1XR"
+            appId:             "1:640234337587:web:f8c06abee19f30160eba46",
+            measurementId:     "G-T3SD7JZ1XR"
         };
 
-        const app = initializeApp(firebaseConfig);
-        const dbFirestore = getFirestore(app);
-        const DOC_ID = "flota_datos";
+        const fbApp       = initializeApp(firebaseConfig);
+        const dbFirestore = getFirestore(fbApp);
+        const COL         = "configuracion";
+        const DOC_ID      = "flota_datos";
 
-        // Inicializamos los objetos globales adjuntados a window
-        window.db = { unidades: [], operadores: [], observaciones: [], configGral: { logoUrl: "" } };
-        window.sesion = { rol: "", codigoAcceso: "" };
-        window.filtroActual = 'Todos';
+        let db = { unidades: [], operadores: [], observaciones: [], configGral: { logoUrl: "" } };
+        let sesion       = { rol: "", codigoAcceso: "" };
+        let filtroActual = "Todos";
 
-        // EXPOSICIÓN GLOBAL DE FUNCIONES
-        window.validarAcceso = function() {
-            const input = document.getElementById('accessCodeInput').value.trim().toUpperCase();
-            if(!input) return alert("Por favor, ingrese un código válido.");
-
-            if(input === 'CART') {
-                window.sesion.rol = 'admin';
-                window.sesion.codigoAcceso = 'CART';
-            } else {
-                window.sesion.rol = 'operador';
-                window.sesion.codigoAcceso = input;
-            }
-
-            document.getElementById('loginScreen').classList.add('hidden');
-            document.getElementById('appContent').classList.remove('hidden');
-            document.getElementById('sessionBadge').textContent = window.sesion.rol === 'admin' ? 'ADMINISTRADOR GENERAL' : `OPERADOR (${window.sesion.codigoAcceso})`;
-
-            if(window.sesion.rol === 'operador') {
-                document.getElementById('adminFormsColumn').classList.add('hidden');
-                document.getElementById('metricsPanel').classList.add('hidden');
-                document.getElementById('adminFilters').classList.add('hidden');
-            } else {
-                document.getElementById('adminFormsColumn').classList.remove('hidden');
-                document.getElementById('metricsPanel').classList.remove('hidden');
-                document.getElementById('adminFilters').classList.remove('hidden');
-            }
-
-            window.renderTodo();
+        function showToast(msg, icon, durationMs) {
+            icon = icon || "fa-circle-notch fa-spin";
+            const toast = document.getElementById("toastMsg");
+            document.getElementById("toastText").textContent = msg;
+            document.getElementById("toastIcon").className   = "fa-solid " + icon;
+            toast.classList.remove("hide");
+            toast.classList.add("show");
+            if (durationMs) setTimeout(hideToast, durationMs);
+        }
+        function hideToast() {
+            const toast = document.getElementById("toastMsg");
+            toast.classList.remove("show");
+            toast.classList.add("hide");
         }
 
-        window.cerrarSesion = function() {
-            document.getElementById('accessCodeInput').value = "";
-            document.getElementById('appContent').classList.add('hidden');
-            document.getElementById('loginScreen').classList.remove('hidden');
-            window.sesion = { rol: "", codigoAcceso: "" };
+        function sanitizar(obj) {
+            return JSON.parse(JSON.stringify(obj, function(_, v) { return v === undefined ? null : v; }));
         }
 
-        window.guardarBD = async function() {
+        function getTodayStr() {
+            var d = new Date();
+            var y = d.getFullYear();
+            var m = String(d.getMonth() + 1).padStart(2, "0");
+            var day = String(d.getDate()).padStart(2, "0");
+            return y + "-" + m + "-" + day;
+        }
+
+        function checkDoc(fStr) {
+            if (!fStr) return { c: "text-gray-400", txt: "N/R" };
+            var hoy = getTodayStr();
+            if (fStr <= hoy) return { c: "text-red-600 font-bold", txt: fStr + " (VENCIDO)" };
+            return { c: "text-emerald-600", txt: fStr };
+        }
+
+        async function guardarBD() {
+            showToast("Guardando...");
             try {
-                await setDoc(doc(dbFirestore, "configuracion", DOC_ID), window.db);
-                window.renderTodo();
+                await setDoc(doc(dbFirestore, COL, DOC_ID), sanitizar(db));
+                showToast("Guardado correctamente", "fa-check-circle", 2500);
             } catch(e) {
                 console.error("Error al guardar en Firebase:", e);
+                showToast("Error al guardar. Ver consola.", "fa-triangle-exclamation", 4000);
             }
+            renderTodo();
         }
 
-        window.cargarBD = async function() {
+        async function cargarBD() {
+            showToast("Cargando datos...");
             try {
-                const snap = await getDoc(doc(dbFirestore, "configuracion", DOC_ID));
-                if(snap.exists()) {
-                    window.db = snap.data();
-                }
-                if(!window.db.unidades) window.db.unidades = [];
-                if(!window.db.operadores) window.db.operadores = [];
-                if(!window.db.observaciones) window.db.observaciones = [];
-                if(!window.db.configGral) window.db.configGral = { logoUrl: "" };
-                window.renderTodo();
+                var snap = await getDoc(doc(dbFirestore, COL, DOC_ID));
+                if (snap.exists()) db = snap.data();
             } catch(e) {
                 console.error("Error al cargar de Firebase:", e);
+                showToast("Error al cargar.", "fa-triangle-exclamation", 4000);
+            }
+            if (!Array.isArray(db.unidades))     db.unidades     = [];
+            if (!Array.isArray(db.operadores))    db.operadores    = [];
+            if (!Array.isArray(db.observaciones)) db.observaciones = [];
+            if (!db.configGral)                   db.configGral    = { logoUrl: "" };
+            hideToast();
+            renderTodo();
+        }
+
+        async function validarAcceso() {
+            var input = document.getElementById("accessCodeInput").value.trim().toUpperCase();
+            var errEl = document.getElementById("loginError");
+            errEl.classList.add("hidden");
+
+            if (!input) {
+                errEl.textContent = "Ingrese un código válido.";
+                errEl.classList.remove("hidden");
+                return;
+            }
+
+            sesion = (input === "CART")
+                ? { rol: "admin",    codigoAcceso: "CART" }
+                : { rol: "operador", codigoAcceso: input };
+
+            document.getElementById("loginScreen").classList.add("hidden");
+            document.getElementById("appContent").classList.remove("hidden");
+            document.getElementById("sessionBadge").textContent =
+                sesion.rol === "admin" ? "ADMINISTRADOR GENERAL" : "OPERADOR (" + sesion.codigoAcceso + ")";
+
+            var isAdmin = sesion.rol === "admin";
+            document.getElementById("adminFormsColumn").classList.toggle("hidden", !isAdmin);
+            document.getElementById("metricsPanel").classList.toggle("hidden",     !isAdmin);
+            document.getElementById("adminFilters").classList.toggle("hidden",      !isAdmin);
+
+            await cargarBD();
+        }
+
+        function cerrarSesion() {
+            document.getElementById("accessCodeInput").value = "";
+            document.getElementById("appContent").classList.add("hidden");
+            document.getElementById("loginScreen").classList.remove("hidden");
+            sesion = { rol: "", codigoAcceso: "" };
+        }
+
+        function subirLogo() {
+            if (sesion.rol !== "admin") return;
+            var url = prompt("Pegue la URL directa de la imagen para el Logo Corporativo:");
+            if (url !== null && url.trim() !== "") {
+                db.configGral.logoUrl = url.trim();
+                guardarBD();
             }
         }
 
-        window.subirLogo = function() {
-            if(window.sesion.rol !== 'admin') return;
-            const url = prompt("Pegue la URL directa de la imagen para el Logo Corporativo:");
-            if(url !== null) {
-                window.db.configGral.logoUrl = url.trim();
-                window.guardarBD();
-            }
-        }
-
-        window.agregarOperador = function(e) {
+        function agregarOperador(e) {
             e.preventDefault();
-            const nuevoOp = {
-                id: 'op_' + Date.now(),
-                nombre: document.getElementById('opNombre').value.trim(),
-                licencia: document.getElementById('opLicencia').value.trim(),
-                estado: 'Operativo'
-            };
-            window.db.operadores.push(nuevoOp);
-            document.getElementById('formOperador').reset();
-            window.guardarBD();
-        }
-
-        window.toggleEstadoOp = function(id) {
-            const op = window.db.operadores.find(o => o.id === id);
-            if(op) {
-                op.estado = op.estado === 'Operativo' ? 'Baja' : 'Operativo';
-                window.guardarBD();
-            }
-        }
-
-        window.agregarUnidad = function(e) {
-            e.preventDefault();
-            const checkboxes = document.querySelectorAll('.check-op-asignado');
-            const listaIdsSeleccionados = [];
-            checkboxes.forEach(cb => {
-                if(cb.checked) listaIdsSeleccionados.push(cb.value);
+            db.operadores.push({
+                id:       "op_" + Date.now(),
+                nombre:   document.getElementById("opNombre").value.trim(),
+                licencia: document.getElementById("opLicencia").value.trim(),
+                estado:   "Operativo"
             });
+            document.getElementById("formOperador").reset();
+            guardarBD();
+        }
 
-            window.db.unidades.push({
-                id: 'un_' + Date.now(),
-                codigo: document.getElementById('unidadCodigo').value.trim().toUpperCase(),
-                modelo: document.getElementById('unidadModelo').value.trim(),
-                linea: document.getElementById('unidadLinea').value,
-                tipoMedicion: document.getElementById('unidadMedicion').value,
-                valorActual: parseFloat(document.getElementById('unidadValorActual').value) || 0,
-                valorProximo: parseFloat(document.getElementById('unidadValorProximo').value) || 0,
-                operadoresIds: listaIdsSeleccionados,
-                soat: document.getElementById('unidadSoat').value,
-                citv: document.getElementById('unidadCitv').value,
-                seguro: document.getElementById('unidadSeguro').value,
-                cert: document.getElementById('unidadCert').value,
-                customNombre: document.getElementById('unidadCustomNombre').value.trim(),
-                customFecha: document.getElementById('unidadCustomFecha').value,
-                estado: 'Operativo',
+        function toggleEstadoOp(id) {
+            var op = db.operadores.find(function(o) { return o.id === id; });
+            if (op) {
+                op.estado = op.estado === "Operativo" ? "Baja" : "Operativo";
+                guardarBD();
+            }
+        }
+
+        function agregarUnidad(e) {
+            e.preventDefault();
+            var ids = [];
+            document.querySelectorAll(".check-op-asignado").forEach(function(cb) {
+                if (cb.checked) ids.push(cb.value);
+            });
+            db.unidades.push({
+                id:                 "un_" + Date.now(),
+                codigo:             document.getElementById("unidadCodigo").value.trim().toUpperCase(),
+                modelo:             document.getElementById("unidadModelo").value.trim(),
+                linea:              document.getElementById("unidadLinea").value,
+                tipoMedicion:       document.getElementById("unidadMedicion").value,
+                valorActual:        parseFloat(document.getElementById("unidadValorActual").value) || 0,
+                valorProximo:       parseFloat(document.getElementById("unidadValorProximo").value) || 0,
+                operadoresIds:      ids,
+                soat:               document.getElementById("unidadSoat").value   || "",
+                citv:               document.getElementById("unidadCitv").value   || "",
+                seguro:             document.getElementById("unidadSeguro").value  || "",
+                cert:               document.getElementById("unidadCert").value   || "",
+                customNombre:       document.getElementById("unidadCustomNombre").value.trim() || "",
+                customFecha:        document.getElementById("unidadCustomFecha").value || "",
+                estado:             "Operativo",
                 horasTrabajadasHoy: 0,
-                proyeccionDias: null,
-                foto: null
+                proyeccionDias:     null,
+                foto:               ""
             });
-            document.getElementById('formUnidad').reset();
-            window.guardarBD();
+            document.getElementById("formUnidad").reset();
+            guardarBD();
         }
 
-        window.registrarJornadaDiaria = function(id) {
-            const u = window.db.unidades.find(x => x.id === id);
-            if(!u) return;
-            const unidadLabel = u.tipoMedicion === 'Horometro' ? 'Hrs' : 'Km';
-            
-            const ini = prompt(`Ingrese Lectura INICIAL del día (${unidadLabel}):`, u.valorActual);
+        function registrarJornadaDiaria(id) {
+            var u = db.unidades.find(function(x) { return x.id === id; });
+            if (!u) return;
+            var labelM = u.tipoMedicion === "Horometro" ? "Hrs" : "Km";
+
+            var ini = prompt("Ingrese Lectura INICIAL del día (" + labelM + "):", u.valorActual);
             if (ini === null) return;
-            const fin = prompt(`Ingrese Lectura FINAL del día (${unidadLabel}):`);
+            var fin = prompt("Ingrese Lectura FINAL del día (" + labelM + "):");
             if (fin === null) return;
 
-            const valIni = parseFloat(ini);
-            const valFin = parseFloat(fin);
+            var valIni = parseFloat(ini);
+            var valFin = parseFloat(fin);
 
-            if(!isNaN(valIni) && !isNaN(valFin) && valFin >= valIni) {
-                const trabajadas = valFin - valIni;
-                u.valorActual = valFin;
-                u.horasTrabajadasHoy = trabajadas;
-                
-                const restante = u.valorProximo - valFin;
-                if(restante > 0 && trabajadas > 0) {
-                    u.proyeccionDias = Math.ceil(restante / trabajadas);
-                } else {
-                    u.proyeccionDias = null;
+            if (isNaN(valIni) || isNaN(valFin)) {
+                alert("Valores no numéricos. Verifique las lecturas.");
+                return;
+            }
+            if (valFin < valIni) {
+                alert("La lectura FINAL no puede ser menor a la INICIAL.");
+                return;
+            }
+            if (valFin < u.valorActual) {
+                alert("La lectura final (" + valFin + ") es menor a la lectura acumulada actual (" + u.valorActual + "). Verifique.");
+                return;
+            }
+
+            var trabajadas = valFin - valIni;
+            u.valorActual        = valFin;
+            u.horasTrabajadasHoy = trabajadas;
+            var restante         = u.valorProximo - valFin;
+            u.proyeccionDias     = (restante > 0 && trabajadas > 0) ? Math.ceil(restante / trabajadas) : null;
+
+            guardarBD();
+        }
+
+        function toggleEstadoUnidad(id) {
+            var u = db.unidades.find(function(x) { return x.id === id; });
+            if (u) { u.estado = u.estado === "Operativo" ? "Baja" : "Operativo"; guardarBD(); }
+        }
+
+        function subirFoto(id, tipo) {
+            var url = prompt("Pegue el enlace directo de la imagen (URL):");
+            if (url !== null && url.trim() !== "") {
+                if (tipo === "unidad") {
+                    var u = db.unidades.find(function(x) { return x.id === id; });
+                    if (u) u.foto = url.trim();
                 }
-                window.guardarBD();
-            } else {
-                alert("Lecturas inválidas. Verifique los valores.");
+                if (tipo === "observacion") {
+                    var o = db.observaciones.find(function(x) { return x.id === id; });
+                    if (o) o.foto = url.trim();
+                }
+                guardarBD();
             }
         }
 
-        window.toggleEstadoUnidad = function(id) {
-            const u = window.db.unidades.find(x => x.id === id);
-            if(u) { u.estado = u.estado === 'Operativo' ? 'Baja' : 'Operativo'; window.guardarBD(); }
-        }
-
-        window.subirFoto = function(id, tipo) {
-            const url = prompt("Pegue el enlace directo de la imagen (URL):");
-            if(url !== null) {
-                if(tipo === 'unidad') {
-                    const u = window.db.unidades.find(x => x.id === id);
-                    if(u) u.foto = url.trim();
-                }
-                if(tipo === 'observacion') {
-                    const o = window.db.observaciones.find(x => x.id === id);
-                    if(o) o.foto = url.trim();
-                }
-                window.guardarBD();
-            }
-        }
-
-        window.agregarObservacion = function(e) {
+        function agregarObservacion(e) {
             e.preventDefault();
-            window.db.observaciones.push({
-                id: 'obs_' + Date.now(),
-                unidadId: document.getElementById('obsUnidad').value,
-                detalle: document.getElementById('obsDetalle').value.trim(),
-                fecha: new Date().toLocaleDateString('es-PE'),
-                estado: 'Inicio',
-                foto: null
+            var unidadId = document.getElementById("obsUnidad").value;
+            if (!unidadId) { alert("Seleccione un equipo."); return; }
+            db.observaciones.push({
+                id:       "obs_" + Date.now(),
+                unidadId: unidadId,
+                detalle:  document.getElementById("obsDetalle").value.trim(),
+                fecha:    new Date().toLocaleDateString("es-PE"),
+                estado:   "Inicio",
+                foto:     ""
             });
-            document.getElementById('formObservacion').reset();
-            window.guardarBD();
+            document.getElementById("formObservacion").reset();
+            guardarBD();
         }
 
-        window.cambiarEstadoObs = function(id, est) {
-            const o = window.db.observaciones.find(x => x.id === id);
-            if(o) { o.estado = est; window.guardarBD(); }
+        function cambiarEstadoObs(id, est) {
+            var o = db.observaciones.find(function(x) { return x.id === id; });
+            if (o) { o.estado = est; guardarBD(); }
         }
 
-        window.setFiltro = function(f) { window.filtroActual = f; window.renderTodo(); }
+        function setFiltro(f) {
+            filtroActual = f;
+            ["Todos","Amarilla","Blanca"].forEach(function(name) {
+                var btn = document.getElementById("btnFiltro" + name);
+                if (!btn) return;
+                btn.className = (name === f)
+                    ? "px-3 py-1 text-xs font-bold rounded-lg bg-industrial-500 text-white"
+                    : "px-3 py-1 text-xs font-bold rounded-lg bg-gray-200 text-gray-700";
+            });
+            renderTodo();
+        }
 
-        window.renderTodo = function() {
-            // Render de Logo
-            if(window.db.configGral && window.db.configGral.logoUrl) {
-                document.getElementById('appLogoIcon').classList.add('hidden');
-                document.getElementById('appLogoImg').src = window.db.configGral.logoUrl;
-                document.getElementById('appLogoImg').classList.remove('hidden');
+        function renderTodo() {
+            if (db.configGral && db.configGral.logoUrl) {
+                document.getElementById("appLogoIcon").classList.add("hidden");
+                document.getElementById("appLogoImg").src = db.configGral.logoUrl;
+                document.getElementById("appLogoImg").classList.remove("hidden");
             } else {
-                document.getElementById('appLogoIcon').classList.remove('hidden');
-                document.getElementById('appLogoImg').classList.add('hidden');
+                document.getElementById("appLogoIcon").classList.remove("hidden");
+                document.getElementById("appLogoImg").classList.add("hidden");
             }
 
-            // Indicadores numéricos
-            document.getElementById('mEquiposOp').textContent = window.db.unidades.filter(x => x.estado === 'Operativo').length;
-            document.getElementById('mEquiposBaja').textContent = window.db.unidades.filter(x => x.estado === 'Baja').length;
-            document.getElementById('mOpsOp').textContent = window.db.operadores.filter(x => x.estado === 'Operativo').length;
-            document.getElementById('mOpsBaja').textContent = window.db.operadores.filter(x => x.estado === 'Baja').length;
+            document.getElementById("mEquiposOp").textContent   = db.unidades.filter(function(x) { return x.estado === "Operativo"; }).length;
+            document.getElementById("mEquiposBaja").textContent  = db.unidades.filter(function(x) { return x.estado === "Baja"; }).length;
+            document.getElementById("mOpsOp").textContent        = db.operadores.filter(function(x) { return x.estado === "Operativo"; }).length;
+            document.getElementById("mOpsBaja").textContent      = db.operadores.filter(function(x) { return x.estado === "Baja"; }).length;
 
-            // Lista lateral Administrador
-            document.getElementById('listaOperadores').innerHTML = window.db.operadores.map(o => `
-                <div class="flex justify-between items-center text-[11px] bg-gray-50 p-1 border rounded">
-                    <span class="${o.estado === 'Baja' ? 'line-through text-red-500' : ''}">${o.nombre}</span>
-                    <button type="button" onclick="toggleEstadoOp('${o.id}')" class="text-[9px] font-bold uppercase ${o.estado === 'Operativo' ? 'text-red-500' : 'text-emerald-600'}">${o.estado === 'Operativo' ? 'Baja' : 'Alta'}</button>
-                </div>
-            `).join('');
+            document.getElementById("listaOperadores").innerHTML = db.operadores.map(function(o) {
+                return [
+                    '<div class="flex justify-between items-center text-[11px] bg-gray-50 p-1 border rounded">',
+                    '  <span class="' + (o.estado === "Baja" ? "line-through text-red-500" : "") + '">' + o.nombre + '</span>',
+                    '  <button type="button" data-toggle-op="' + o.id + '" class="text-[9px] font-bold uppercase ' +
+                        (o.estado === "Operativo" ? "text-red-500" : "text-emerald-600") + '">',
+                        (o.estado === "Operativo" ? "Baja" : "Alta"),
+                    '  </button>',
+                    '</div>'
+                ].join("");
+            }).join("");
 
-            // Checkboxes múltiples de Operadores
-            const contenedorChecks = document.getElementById('contenedorCheckboxesOperadores');
-            const opsDisponibles = window.db.operadores.filter(x => x.estado === 'Operativo');
-            if(opsDisponibles.length === 0) {
+            var contenedorChecks = document.getElementById("contenedorCheckboxesOperadores");
+            var opsDisponibles   = db.operadores.filter(function(x) { return x.estado === "Operativo"; });
+            if (opsDisponibles.length === 0) {
                 contenedorChecks.innerHTML = '<p class="text-[10px] text-gray-400 text-center py-1">No hay operadores activos</p>';
             } else {
-                contenedorChecks.innerHTML = opsDisponibles.map(o => `
-                    <label class="flex items-center gap-2 text-xs bg-white p-1 rounded border border-gray-100 cursor-pointer">
-                        <input type="checkbox" value="${o.id}" class="check-op-asignado rounded text-industrial-500 focus:ring-0">
-                        <span class="truncate font-medium">${o.nombre}</span>
-                    </label>
-                `).join('');
+                contenedorChecks.innerHTML = opsDisponibles.map(function(o) {
+                    return '<label class="flex items-center gap-2 text-xs bg-white p-1 rounded border border-gray-100 cursor-pointer">' +
+                        '<input type="checkbox" value="' + o.id + '" class="check-op-asignado rounded focus:ring-0">' +
+                        '<span class="truncate font-medium">' + o.nombre + '</span></label>';
+                }).join("");
             }
-            
-            // Selector de unidades para Reportes
-            const unidadesParaReporte = window.sesion.rol === 'operador' ? window.db.unidades.filter(x => x.codigo === window.sesion.codigoAcceso) : window.db.unidades;
-            document.getElementById('obsUnidad').innerHTML = '<option value="">-- Seleccionar Equipo --</option>' + unidadesParaReporte.map(u => `<option value="${u.id}">${u.codigo}</option>`).join('');
 
-            // Filtrados de búsqueda
-            let visuales = window.db.unidades;
-            if(window.sesion.rol === 'operador') {
-                visuales = visuales.filter(x => x.codigo === window.sesion.codigoAcceso);
+            var unidadesParaReporte = sesion.rol === "operador"
+                ? db.unidades.filter(function(x) { return x.codigo === sesion.codigoAcceso; })
+                : db.unidades;
+            document.getElementById("obsUnidad").innerHTML =
+                '<option value="">-- Seleccionar Equipo --</option>' +
+                unidadesParaReporte.map(function(u) { return '<option value="' + u.id + '">' + u.codigo + '</option>'; }).join("");
+
+            var visuales = db.unidades.slice();
+            if (sesion.rol === "operador") {
+                visuales = visuales.filter(function(x) { return x.codigo === sesion.codigoAcceso; });
             } else {
-                if(window.filtroActual !== 'Todos') visuales = visuales.filter(x => x.linea === window.filtroActual);
-                const bus = document.getElementById('buscadorInput')?.value.toLowerCase();
-                if(bus) visuales = visuales.filter(x => x.codigo.toLowerCase().includes(bus) || x.modelo.toLowerCase().includes(bus));
+                if (filtroActual !== "Todos") visuales = visuales.filter(function(x) { return x.linea === filtroActual; });
+                var bus = (document.getElementById("buscadorInput").value || "").toLowerCase();
+                if (bus) visuales = visuales.filter(function(x) {
+                    return x.codigo.toLowerCase().includes(bus) || x.modelo.toLowerCase().includes(bus);
+                });
             }
 
-            const hoy = new Date();
-            
-            // Renderizado de Tarjetas de Maquinarias
-            document.getElementById('gridUnidades').innerHTML = visuales.map(u => {
-                let nombresOps = "No asignado";
-                if(u.operadoresIds && u.operadoresIds.length > 0) {
-                    const filtrados = window.db.operadores.filter(o => u.operadoresIds.includes(o.id));
-                    if(filtrados.length > 0) nombresOps = filtrados.map(f => f.nombre).join(', ');
+            document.getElementById("gridUnidades").innerHTML = visuales.map(function(u) {
+                var nombresOps = "No asignado";
+                if (u.operadoresIds && u.operadoresIds.length > 0) {
+                    var filtrados = db.operadores.filter(function(o) { return u.operadoresIds.includes(o.id); });
+                    if (filtrados.length > 0) nombresOps = filtrados.map(function(f) { return f.nombre; }).join(", ");
                 }
+                var labelM = u.tipoMedicion === "Horometro" ? "Hrs" : "Km";
+                var rest   = u.valorProximo - u.valorActual;
+                var colorBorder = "border-emerald-500";
+                if (rest <= 0 || u.estado === "Baja") colorBorder = "border-red-500";
+                else if (rest <= (u.tipoMedicion === "Horometro" ? 50 : 500)) colorBorder = "border-amber-500";
 
-                const labelM = u.tipoMedicion === 'Horometro' ? 'Hrs' : 'Km';
-                const rest = u.valorProximo - u.valorActual;
+                var s   = checkDoc(u.soat);
+                var c   = checkDoc(u.citv);
+                var seg = checkDoc(u.seguro);
+                var cer = checkDoc(u.cert);
+                var cust = u.customFecha ? checkDoc(u.customFecha) : null;
+                var fotoSrc = u.foto || "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=200";
 
-                let colorBorder = "border-emerald-500";
-                if(rest <= 0 || u.estado === 'Baja') colorBorder = "border-red-500";
-                else if(rest <= (u.tipoMedicion === 'Horometro' ? 50 : 500)) colorBorder = "border-amber-500";
+                return [
+                    '<div class="bg-white rounded-xl overflow-hidden border-2 ' + colorBorder + ' p-4 space-y-3 shadow-sm">',
+                    '  <div class="flex gap-3">',
+                    '    <div class="w-16 h-16 rounded-lg bg-gray-100 border relative group overflow-hidden flex-shrink-0 cursor-pointer" data-foto-unidad="' + u.id + '">',
+                    '      <img src="' + fotoSrc + '" class="w-full h-full object-cover" alt="Foto">',
+                    '      <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 text-white text-[8px] flex items-center justify-center font-bold text-center p-1">CAMBIAR FOTO</div>',
+                    '    </div>',
+                    '    <div class="flex-1 min-w-0">',
+                    '      <div class="flex justify-between">',
+                    '        <span class="text-xs font-black font-mono bg-gray-900 text-white px-1.5 rounded">' + u.codigo + '</span>',
+                    '        <span class="text-[9px] font-bold text-gray-400 uppercase">' + u.estado + '</span>',
+                    '      </div>',
+                    '      <h4 class="text-xs font-black truncate mt-1">' + u.modelo + '</h4>',
+                    '      <p class="text-[10px] text-gray-500 font-bold truncate">Ops: ' + nombresOps + '</p>',
+                    '    </div>',
+                    '  </div>',
+                    '  <div class="grid grid-cols-2 gap-1.5 text-[11px] border-y py-1.5 font-semibold">',
+                    '    <div><p class="text-[9px] text-gray-400 uppercase">Lectura Actual</p><span>' + u.valorActual + ' ' + labelM + '</span></div>',
+                    '    <div><p class="text-[9px] text-gray-400 uppercase">Resta Mto.</p><span class="' + (rest <= 0 ? "text-red-600 font-bold" : "") + '">' + (rest <= 0 ? "REQUERIDO" : rest.toFixed(1) + " " + labelM) + '</span></div>',
+                    '    <div><p class="text-[9px] text-gray-400 uppercase">Trabajado Hoy</p><span>' + (u.horasTrabajadasHoy || 0) + ' ' + labelM + '</span></div>',
+                    '    <div><p class="text-[9px] text-gray-400 uppercase">Días para Mto.</p><span>' + (u.proyeccionDias ? u.proyeccionDias + " Días" : "Calculando...") + '</span></div>',
+                    '  </div>',
+                    '  <div class="text-[9px] grid grid-cols-2 gap-x-2 gap-y-0.5 font-bold bg-gray-50 p-1.5 rounded">',
+                    '    <div>SOAT: <span class="' + s.c + '">' + s.txt + '</span></div>',
+                    '    <div>CITV: <span class="' + c.c + '">' + c.txt + '</span></div>',
+                    '    <div>SEGURO: <span class="' + seg.c + '">' + seg.txt + '</span></div>',
+                    '    <div>CERT. OP: <span class="' + cer.c + '">' + cer.txt + '</span></div>',
+                    cust ? '<div class="col-span-2 text-indigo-600 uppercase font-black">' + (u.customNombre || "ALERTA") + ': <span class="' + cust.c + '">' + cust.txt + '</span></div>' : '',
+                    '  </div>',
+                    '  <div class="flex gap-2 pt-1">',
+                    '    <button type="button" data-jornada="' + u.id + '" class="w-full bg-industrial-500 text-gray-950 font-black py-1.5 text-[10px] rounded uppercase tracking-wider">Registrar Jornada</button>',
+                    sesion.rol === "admin" ? '<button type="button" data-toggle-unidad="' + u.id + '" class="text-[9px] px-2 border rounded font-bold uppercase text-red-600 hover:bg-red-50">' + (u.estado === "Operativo" ? "Baja" : "Alta") + '</button>' : '',
+                    '  </div>',
+                    '</div>'
+                ].join("");
+            }).join("");
 
-                const checkDoc = (fStr) => {
-                    if(!fStr) return { c: 'text-gray-400', txt: 'N/R' };
-                    const f = new Date(fStr);
-                    if(f <= hoy) return { c: 'text-red-600 font-bold', txt: fStr + ' (VENCIDO)' };
-                    return { c: 'text-emerald-600', txt: fStr };
-                };
+            var obsVisibles = sesion.rol === "operador"
+                ? db.observaciones.filter(function(o) {
+                    var u = db.unidades.find(function(x) { return x.id === o.unidadId; });
+                    return u && u.codigo === sesion.codigoAcceso;
+                })
+                : db.observaciones;
 
-                const s = checkDoc(u.soat); const c = checkDoc(u.citv);
-                const seg = checkDoc(u.seguro); const cer = checkDoc(u.cert);
-                const cust = u.customFecha ? checkDoc(u.customFecha) : null;
+            document.getElementById("listaObservaciones").innerHTML = obsVisibles.slice().reverse().map(function(o) {
+                var u = db.unidades.find(function(x) { return x.id === o.unidadId; });
+                var badgeC = "bg-blue-100 text-blue-800";
+                if (o.estado === "En Proceso") badgeC = "bg-amber-100 text-amber-800";
+                if (o.estado === "Completo")   badgeC = "bg-emerald-100 text-emerald-800";
 
-                return `
-                    <div class="bg-white rounded-xl overflow-hidden border-2 ${colorBorder} p-4 space-y-3 shadow-sm">
-                        <div class="flex gap-3">
-                            <div class="w-16 h-16 rounded-lg bg-gray-100 border relative group overflow-hidden flex-shrink-0 cursor-pointer" onclick="subirFoto('${u.id}', 'unidad')">
-                                <img src="${u.foto || 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=200'}" class="w-full h-full object-cover">
-                                <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 text-white text-[8px] flex items-center justify-center font-bold text-center p-1">CAMBIAR FOTO</div>
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <div class="flex justify-between"><span class="text-xs font-black font-mono bg-gray-900 text-white px-1.5 rounded">${u.codigo}</span><span class="text-[9px] font-bold text-gray-400 uppercase">${u.estado}</span></div>
-                                <h4 class="text-xs font-black truncate mt-1">${u.modelo}</h4>
-                                <p class="text-[10px] text-gray-500 font-bold truncate">Ops: ${nombresOps}</p>
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-2 gap-1.5 text-[11px] border-y py-1.5 font-semibold">
-                            <div><p class="text-[9px] text-gray-400 uppercase">Lectura Actual</p><span>${u.valorActual} ${labelM}</span></div>
-                            <div><p class="text-[9px] text-gray-400 uppercase">Resta Mto.</p><span class="${rest <= 0 ? 'text-red-600 font-bold':''}">${rest <= 0 ? 'REQUERIDO' : rest.toFixed(1) + ' ' + labelM}</span></div>
-                            <div><p class="text-[9px] text-gray-400 uppercase">Trabajado Hoy</p><span>${u.horasTrabajadasHoy || 0} ${labelM}</span></div>
-                            <div><p class="text-[9px] text-gray-400 uppercase">Días para Mto.</p><span>${u.proyeccionDias ? u.proyeccionDias + ' Días' : 'Calculando...'}</span></div>
-                        </div>
-                        <div class="text-[9px] grid grid-cols-2 gap-x-2 gap-y-0.5 font-bold bg-gray-50 p-1.5 rounded">
-                            <div>SOAT: <span class="${s.c}">${s.txt}</span></div>
-                            <div>CITV: <span class="${c.c}">${c.txt}</span></div>
-                            <div>SEGURO: <span class="${seg.c}">${seg.txt}</span></div>
-                            <div>CERT. OP: <span class="${cer.c}">${cer.txt}</span></div>
-                            ${cust ? `<div class="col-span-2 text-indigo-600 uppercase font-black">${u.customNombre || 'ALERTA'}: <span class="${cust.c}">${cust.txt}</span></div>` : ''}
-                        </div>
-                        <div class="flex gap-2 pt-1">
-                            <button type="button" onclick="registrarJornadaDiaria('${u.id}')" class="w-full bg-industrial-500 text-gray-950 font-black py-1.5 text-[10px] rounded uppercase tracking-wider">Registrar Jornada</button>
-                            ${window.sesion.rol === 'admin' ? `<button type="button" onclick="toggleEstadoUnidad('${u.id}')" class="text-[9px] px-2 border rounded font-bold uppercase text-red-600 hover:bg-red-50">${u.estado === 'Operativo' ? 'Baja' : 'Alta'}</button>`:''}
-                        </div>
-                    </div>
-                `;
-            }).join('');
-
-            // Historial de observaciones
-            const obsVisibles = window.sesion.rol === 'operador' ? window.db.observaciones.filter(o => {
-                const u = window.db.unidades.find(x => x.id === o.unidadId);
-                return u && u.codigo === window.sesion.codigoAcceso;
-            }) : window.db.observaciones;
-
-            document.getElementById('listaObservaciones').innerHTML = obsVisibles.slice().reverse().map(o => {
-                const u = window.db.unidades.find(x => x.id === o.unidadId);
-                let badgeC = "bg-blue-100 text-blue-800";
-                if(o.estado === 'En Proceso') badgeC = "bg-amber-100 text-amber-800";
-                if(o.estado === 'Completo') badgeC = "bg-emerald-100 text-emerald-800";
-
-                return `
-                    <div class="text-xs bg-gray-50 border p-2.5 rounded-lg flex justify-between gap-3 relative group">
-                        <div class="space-y-1">
-                            <div class="flex items-center gap-2">
-                                <span class="bg-gray-900 text-white text-[9px] px-1 rounded font-mono font-bold">${u ? u.codigo : 'Removido'}</span>
-                                <span class="text-[9px] text-gray-400 font-bold">${o.fecha}</span>
-                                <span class="text-[9px] font-black uppercase px-1 rounded ${badgeC}">${o.estado}</span>
-                            </div>
-                            <p class="text-gray-700 font-medium leading-tight">${o.detalle}</p>
-                            <div class="flex gap-2 text-[9px] font-bold pt-1">
-                                <button type="button" onclick="subirFoto('${o.id}','observacion')" class="text-industrial-600"><i class="fa-solid fa-camera"></i> Subir Foto</button>
-                                ${window.sesion.rol === 'admin' ? `
-                                    <button type="button" onclick="cambiarEstadoObs('${o.id}','Inicio')" class="text-blue-600">Inicio</button>
-                                    <button type="button" onclick="cambiarEstadoObs('${o.id}','En Proceso')" class="text-amber-600">Proceso</button>
-                                    <button type="button" onclick="cambiarEstadoObs('${o.id}','Completo')" class="text-emerald-600">Completo</button>
-                                `:''}
-                            </div>
-                        </div>
-                        ${o.foto ? `<img src="${o.foto}" class="w-12 h-12 object-cover border rounded bg-white flex-shrink-0">` : ''}
-                    </div>
-                `;
-            }).join('');
-        };
-
-        window.compartirApp = function() {
-            navigator.clipboard.writeText(window.location.href);
-            alert("¡Enlace de acceso copiado!");
+                return [
+                    '<div class="text-xs bg-gray-50 border p-2.5 rounded-lg flex justify-between gap-3">',
+                    '  <div class="space-y-1">',
+                    '    <div class="flex items-center gap-2">',
+                    '      <span class="bg-gray-900 text-white text-[9px] px-1 rounded font-mono font-bold">' + (u ? u.codigo : "Removido") + '</span>',
+                    '      <span class="text-[9px] text-gray-400 font-bold">' + o.fecha + '</span>',
+                    '      <span class="text-[9px] font-black uppercase px-1 rounded ' + badgeC + '">' + o.estado + '</span>',
+                    '    </div>',
+                    '    <p class="text-gray-700 font-medium leading-tight">' + o.detalle + '</p>',
+                    '    <div class="flex gap-2 text-[9px] font-bold pt-1">',
+                    '      <button type="button" data-foto-obs="' + o.id + '" class="text-industrial-600"><i class="fa-solid fa-camera"></i> Subir Foto</button>',
+                    sesion.rol === "admin" ? [
+                        '<button type="button" data-obs-estado="' + o.id + '" data-obs-val="Inicio"     class="text-blue-600">Inicio</button>',
+                        '<button type="button" data-obs-estado="' + o.id + '" data-obs-val="En Proceso" class="text-amber-600">Proceso</button>',
+                        '<button type="button" data-obs-estado="' + o.id + '" data-obs-val="Completo"   class="text-emerald-600">Completo</button>'
+                    ].join("") : "",
+                    '    </div>',
+                    '  </div>',
+                    o.foto ? '<img src="' + o.foto + '" class="w-12 h-12 object-cover border rounded bg-white flex-shrink-0" alt="Foto obs.">' : '',
+                    '</div>'
+                ].join("");
+            }).join("");
         }
 
-        // Ejecutar carga inicial al montar el script
-        window.cargarBD();
+        function compartirApp() {
+            var url = window.location.href;
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(url)
+                    .then(function() { showToast("Enlace copiado!", "fa-check-circle", 2500); })
+                    .catch(function() { prompt("Copie este enlace:", url); });
+            } else {
+                prompt("Copie este enlace:", url);
+            }
+        }
+
+        document.body.addEventListener("click", function(e) {
+            var t;
+            t = e.target.closest("[data-toggle-op]");
+            if (t) { toggleEstadoOp(t.dataset.toggleOp); return; }
+            t = e.target.closest("[data-jornada]");
+            if (t) { registrarJornadaDiaria(t.dataset.jornada); return; }
+            t = e.target.closest("[data-toggle-unidad]");
+            if (t) { toggleEstadoUnidad(t.dataset.toggleUnidad); return; }
+            t = e.target.closest("[data-foto-unidad]");
+            if (t) { subirFoto(t.dataset.fotoUnidad, "unidad"); return; }
+            t = e.target.closest("[data-foto-obs]");
+            if (t) { subirFoto(t.dataset.fotoObs, "observacion"); return; }
+            t = e.target.closest("[data-obs-estado]");
+            if (t) { cambiarEstadoObs(t.dataset.obsEstado, t.dataset.obsVal); return; }
+        });
+
+        document.getElementById("btnIngresar").addEventListener("click", validarAcceso);
+        document.getElementById("accessCodeInput").addEventListener("keydown", function(e) {
+            if (e.key === "Enter") validarAcceso();
+        });
+        document.getElementById("btnCerrarSesion").addEventListener("click", cerrarSesion);
+        document.getElementById("btnCompartir").addEventListener("click", compartirApp);
+        document.getElementById("btnLogo").addEventListener("click", subirLogo);
+        document.getElementById("btnLogoTitle").addEventListener("click", subirLogo);
+
+        document.getElementById("formOperador").addEventListener("submit", agregarOperador);
+        document.getElementById("formUnidad").addEventListener("submit", agregarUnidad);
+        document.getElementById("formObservacion").addEventListener("submit", agregarObservacion);
+
+        document.getElementById("btnFiltroTodos").addEventListener("click",    function() { setFiltro("Todos"); });
+        document.getElementById("btnFiltroAmarilla").addEventListener("click", function() { setFiltro("Amarilla"); });
+        document.getElementById("btnFiltroBlanca").addEventListener("click",   function() { setFiltro("Blanca"); });
+        document.getElementById("buscadorInput").addEventListener("input",     renderTodo);
+
     </script>
 </body>
 </html>
