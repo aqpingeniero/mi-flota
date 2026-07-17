@@ -52,12 +52,12 @@
         <header class="bg-gray-950 text-white shadow-md border-b-4 border-industrial-500 py-4 px-6 mb-6">
             <div class="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
                 <div class="flex items-center gap-3">
-                    <div class="bg-industrial-500 text-gray-950 p-2 rounded-lg cursor-pointer" onclick="subirLogo()">
+                    <div class="bg-industrial-500 text-gray-950 p-2 rounded-lg cursor-pointer flex items-center justify-center min-w-[40px] min-h-[40px]" onclick="subirLogo()">
                         <i id="appLogoIcon" class="fa-solid fa-truck-monster text-xl"></i>
-                        <img id="appLogoImg" src="" class="hidden w-6 h-6 object-contain rounded">
+                        <img id="appLogoImg" src="" class="hidden w-8 h-8 object-contain rounded">
                     </div>
                     <div>
-                        <h1 class="text-lg font-black tracking-wider">CART | CONTROL DE FLOTA</h1>
+                        <h1 class="text-lg font-black tracking-wider cursor-pointer" onclick="subirLogo()">CART | CONTROL DE FLOTA</h1>
                         <p class="text-[9px] text-gray-400 uppercase tracking-widest">Sesión: <span id="sessionBadge" class="text-industrial-500"></span></p>
                     </div>
                 </div>
@@ -72,7 +72,7 @@
             </div>
         </header>
 
-        <!-- PANEL DE MÉTRICAS GLOBALES (VISTA TOTAL PARA ADMIN) -->
+        <!-- PANEL DE MÉTRICAS GLOBALES -->
         <section id="metricsPanel" class="max-w-7xl mx-auto px-4 mb-6 grid grid-cols-2 md:grid-cols-4 gap-4">
             <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-200 text-center">
                 <p class="text-[9px] text-gray-400 font-bold uppercase">Equipos Operativos</p>
@@ -123,7 +123,15 @@
                             <input type="number" id="unidadValorActual" required placeholder="Lectura Inicial Fija" class="w-full border p-2 text-xs rounded-lg">
                             <input type="number" id="unidadValorProximo" required placeholder="Límite Próx. Mto." class="w-full border p-2 text-xs rounded-lg">
                         </div>
-                        <select id="unidadOperadorAsignado" class="w-full border p-2 text-xs rounded-lg"><option value="">-- Asignar Operador --</option></select>
+                        
+                        <!-- SELECCIÓN MÚLTIPLE DE OPERADORES -->
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Asignar Uno o Más Operadores:</label>
+                            <div id="contenedorCheckboxesOperadores" class="border rounded-lg p-2 max-h-28 overflow-y-auto space-y-1 bg-gray-50">
+                                <!-- Checkboxes generados dinámicamente -->
+                            </div>
+                        </div>
+
                         <div class="grid grid-cols-2 gap-1 text-[10px]">
                             <label>SOAT:<input type="date" id="unidadSoat" class="w-full border p-1 rounded"></label>
                             <label>CITV:<input type="date" id="unidadCitv" class="w-full border p-1 rounded"></label>
@@ -142,7 +150,7 @@
                 </div>
             </div>
 
-            <!-- COLUMNA REGISTRO DE REPORTES (ACCESIBLE PARA AMBOS) -->
+            <!-- COLUMNA REGISTRO DE REPORTES -->
             <div id="comunReportColumn" class="space-y-6 lg:col-span-1">
                 <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
                     <h3 class="text-xs font-black text-gray-900 border-b pb-2 uppercase tracking-wider mb-3 text-industrial-600"><i class="fa-solid fa-bullhorn mr-1"></i> Reportar Observación Técnico</h3>
@@ -156,7 +164,7 @@
 
             <!-- COLUMNA VISUALIZACIÓN / DERECHA -->
             <div id="displayColumn" class="lg:col-span-2 space-y-6">
-                <!-- BUSCADOR RESTRINGIDO PARA ADMIN -->
+                <!-- FILTROS -->
                 <div id="adminFilters" class="flex justify-between items-center bg-white p-3 rounded-xl border border-gray-200">
                     <div class="flex gap-1">
                         <button id="btnFiltroTodos" onclick="setFiltro('Todos')" class="px-3 py-1 text-xs font-bold rounded-lg bg-industrial-500 text-white">Todos</button>
@@ -183,7 +191,6 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // CONFIGURACIÓN DE FIREBASE CONFIG PROPORCIONADA
         const firebaseConfig = {
             apiKey: "AIzaSyCG6sTwnI3IeV6QkTGTr4W5BxglfWdS2CM",
             authDomain: "control-flota-cart.firebaseapp.com",
@@ -202,7 +209,7 @@
         window.sesion = { rol: "", codigoAcceso: "" };
         window.filtroActual = 'Todos';
 
-        // ACCESO INTEGRADO
+        // ACCESO
         window.validarAcceso = function() {
             const input = document.getElementById('accessCodeInput').value.trim().toUpperCase();
             if(!input) return alert("Por favor, ingrese un código válido.");
@@ -219,13 +226,10 @@
             document.getElementById('appContent').classList.remove('hidden');
             document.getElementById('sessionBadge').textContent = sesion.rol === 'admin' ? 'ADMINISTRADOR GENERAL' : `OPERADOR (${sesion.codigoAcceso})`;
 
-            // Ajustar visibilidad según rol
             if(sesion.rol === 'operador') {
                 document.getElementById('adminFormsColumn').classList.add('hidden');
                 document.getElementById('metricsPanel').classList.add('hidden');
                 document.getElementById('adminFilters').classList.add('hidden');
-                document.getElementById('comunReportColumn').classList.remove('lg:col-span-1');
-                document.getElementById('comunReportColumn').classList.add('lg:col-span-1');
             } else {
                 document.getElementById('adminFormsColumn').classList.remove('hidden');
                 document.getElementById('metricsPanel').classList.remove('hidden');
@@ -242,17 +246,17 @@
             sesion = { rol: "", codigoAcceso: "" };
         }
 
-        // CONTROL LOGO APP
+        // CAMBIAR LOGO GENERAL
         window.subirLogo = function() {
             if(sesion.rol !== 'admin') return;
-            const url = prompt("Pegue la URL del nuevo Logo Corporativo:");
+            const url = prompt("Pegue la URL directa de la imagen para el Logo Corporativo:");
             if(url !== null) {
                 db.configGral.logoUrl = url.trim();
                 guardarBD();
             }
         }
 
-        // FIREBASE SYNC
+        // FIREBASE SINCRO
         window.guardarBD = async function() {
             try { await setDoc(doc(dbFirestore, "configuracion", DOC_ID), db); renderTodo(); } catch(e) { console.error(e); }
         }
@@ -285,6 +289,14 @@
         // UNIDADES
         window.agregarUnidad = function(e) {
             e.preventDefault();
+            
+            // Recoger IDs de operadores seleccionados en los checkboxes
+            const checkboxes = document.querySelectorAll('.check-op-asignado');
+            const listaIdsSeleccionados = [];
+            checkboxes.forEach(cb => {
+                if(cb.checked) listaIdsSeleccionados.push(cb.value);
+            });
+
             db.unidades.push({
                 id: 'un_' + Date.now(),
                 codigo: document.getElementById('unidadCodigo').value.trim().toUpperCase(),
@@ -293,7 +305,7 @@
                 tipoMedicion: document.getElementById('unidadMedicion').value,
                 valorActual: parseFloat(document.getElementById('unidadValorActual').value) || 0,
                 valorProximo: parseFloat(document.getElementById('unidadValorProximo').value) || 0,
-                operadorId: document.getElementById('unidadOperadorAsignado').value,
+                operadoresIds: listaIdsSeleccionados, // Guardamos la lista múltiple
                 soat: document.getElementById('unidadSoat').value,
                 citv: document.getElementById('unidadCitv').value,
                 seguro: document.getElementById('unidadSeguro').value,
@@ -335,7 +347,7 @@
                 }
                 guardarBD();
             } else {
-                alert("Lecturas inválidas. Asegúrese de que el valor final sea mayor o igual al inicial.");
+                alert("Lecturas inválidas. Verifique los valores.");
             }
         }
 
@@ -343,11 +355,19 @@
             const u = db.unidades.find(x => x.id === id);
             if(u) { u.estado = u.estado === 'Operativo' ? 'Baja' : 'Operativo'; guardarBD(); }
         }
+
+        // SUBIDA UNIVERSAL DE FOTOS (CORREGIDA)
         window.subirFoto = function(id, tipo) {
-            const url = prompt("Pegue el enlace directo de la imagen:");
+            const url = prompt("Pegue el enlace directo de la imagen (URL):");
             if(url !== null) {
-                if(tipo === 'unidad') { const u = db.unidades.find(x => x.id === id); if(u) u.foto = url.trim(); }
-                if(tipo === 'observacion') { const o = db.observaciones.find(x => x.id === id); if(o) o.foto = url.trim(); }
+                if(tipo === 'unidad') { 
+                    const u = db.unidades.find(x => x.id === id); 
+                    if(u) u.foto = url.trim(); 
+                }
+                if(tipo === 'observacion') { 
+                    const o = db.observaciones.find(x => x.id === id); 
+                    if(o) o.foto = url.trim(); 
+                }
                 guardarBD();
             }
         }
@@ -373,22 +393,25 @@
 
         window.setFiltro = function(f) { filtroActual = f; renderTodo(); }
 
-        // RENDERS
+        // RENDERS PRINCIPALES
         window.renderTodo = function() {
-            // Logo corporativo superior
+            // Render del Logo Corporativo
             if(db.configGral?.logoUrl) {
                 document.getElementById('appLogoIcon').classList.add('hidden');
                 document.getElementById('appLogoImg').src = db.configGral.logoUrl;
                 document.getElementById('appLogoImg').classList.remove('hidden');
+            } else {
+                document.getElementById('appLogoIcon').classList.remove('hidden');
+                document.getElementById('appLogoImg').classList.add('hidden');
             }
 
-            // Contadores globales
+            // Indicadores numéricos superiores
             document.getElementById('mEquiposOp').textContent = db.unidades.filter(x => x.estado === 'Operativo').length;
             document.getElementById('mEquiposBaja').textContent = db.unidades.filter(x => x.estado === 'Baja').length;
             document.getElementById('mOpsOp').textContent = db.operadores.filter(x => x.estado === 'Operativo').length;
             document.getElementById('mOpsBaja').textContent = db.operadores.filter(x => x.estado === 'Baja').length;
 
-            // Listas auxiliares en formularios
+            // Renderizar la lista lateral de operadores en el Administrador
             document.getElementById('listaOperadores').innerHTML = db.operadores.map(o => `
                 <div class="flex justify-between items-center text-[11px] bg-gray-50 p-1 border rounded">
                     <span class="${o.estado === 'Baja' ? 'line-through text-red-500' : ''}">${o.nombre}</span>
@@ -396,12 +419,25 @@
                 </div>
             `).join('');
 
-            document.getElementById('unidadOperadorAsignado').innerHTML = '<option value="">-- Asignar Operador --</option>' + db.operadores.filter(x => x.estado === 'Operativo').map(o => `<option value="${o.id}">${o.nombre}</option>`).join('');
+            // CORRECCIÓN: Renderizar Checkboxes para permitir selección múltiple de operadores
+            const contenedorChecks = document.getElementById('contenedorCheckboxesOperadores');
+            const opsDisponibles = db.operadores.filter(x => x.estado === 'Operativo');
+            if(opsDisponibles.length === 0) {
+                contenedorChecks.innerHTML = '<p class="text-[10px] text-gray-400 text-center py-1">No hay operadores activos</p>';
+            } else {
+                contenedorChecks.innerHTML = opsDisponibles.map(o => `
+                    <label class="flex items-center gap-2 text-xs bg-white p-1 rounded border border-gray-100 cursor-pointer">
+                        <input type="checkbox" value="${o.id}" class="check-op-asignado rounded text-industrial-500 focus:ring-0">
+                        <span class="truncate font-medium">${o.nombre}</span>
+                    </label>
+                `).join('');
+            }
             
-            const unidadesParaReporte = sesion.col === 'operador' ? db.unidades.filter(x => x.codigo === sesion.codigoAcceso) : db.unidades;
+            // Selector de equipos para reportes técnicos
+            const unidadesParaReporte = sesion.rol === 'operador' ? db.unidades.filter(x => x.codigo === sesion.codigoAcceso) : db.unidades;
             document.getElementById('obsUnidad').innerHTML = '<option value="">-- Seleccionar Equipo --</option>' + unidadesParaReporte.map(u => `<option value="${u.id}">${u.codigo}</option>`).join('');
 
-            // Filtrar Tarjetas de Equipos
+            // Filtrado de equipos
             let visuales = db.unidades;
             if(sesion.rol === 'operador') {
                 visuales = visuales.filter(x => x.codigo === sesion.codigoAcceso);
@@ -412,17 +448,25 @@
             }
 
             const hoy = new Date();
+            // Renderizado de las Tarjetas de Maquinaria
             document.getElementById('gridUnidades').innerHTML = visuales.map(u => {
-                const op = db.operadores.find(o => o.id === u.operadorId);
+                // CORRECCIÓN: Manejo de múltiples operadores asignados
+                let nombresOps = "No asignado";
+                if(u.operadoresIds && u.operadoresIds.length > 0) {
+                    const filtrados = db.operadores.filter(o => u.operadoresIds.includes(o.id));
+                    if(filtrados.length > 0) nombresOps = filtrados.map(f => f.nombre).join(', ');
+                } else if (u.operadorId) { // Retrocompatibilidad por si quedó alguno antiguo
+                    const opOld = db.operadores.find(o => o.id === u.operadorId);
+                    if(opOld) nombresOps = opOld.nombre;
+                }
+
                 const labelM = u.tipoMedicion === 'Horometro' ? 'Hrs' : 'Km';
                 const rest = u.valorProximo - u.valorActual;
 
-                // Alerta de mantenimiento por color
                 let colorBorder = "border-emerald-500";
                 if(rest <= 0 || u.estado === 'Baja') colorBorder = "border-red-500";
                 else if(rest <= (u.tipoMedicion === 'Horometro' ? 50 : 500)) colorBorder = "border-amber-500";
 
-                // Validaciones de fechas de documentos
                 const checkDoc = (fStr) => {
                     if(!fStr) return { c: 'text-gray-400', txt: 'N/R' };
                     const f = new Date(fStr);
@@ -437,28 +481,28 @@
                 return `
                     <div class="bg-white rounded-xl overflow-hidden border-2 ${colorBorder} p-4 space-y-3 shadow-sm">
                         <div class="flex gap-3">
-                            <div class="w-16 h-16 rounded-lg bg-gray-100 border relative group overflow-hidden flex-shrink-0 cursor-pointer" onclick="subirFoto('${u.id}', 'unidades')">
+                            <div class="w-16 h-16 rounded-lg bg-gray-100 border relative group overflow-hidden flex-shrink-0 cursor-pointer" onclick="subirFoto('${u.id}', 'unidad')">
                                 <img src="${u.foto || 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=200'}" class="w-full h-full object-cover">
-                                <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 text-white text-[8px] flex items-center justify-center font-bold">FOTO</div>
+                                <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 text-white text-[8px] flex items-center justify-center font-bold">CAMBIAR FOTO</div>
                             </div>
                             <div class="flex-1 min-w-0">
                                 <div class="flex justify-between"><span class="text-xs font-black font-mono bg-gray-900 text-white px-1.5 rounded">${u.codigo}</span><span class="text-[9px] font-bold text-gray-400 uppercase">${u.estado}</span></div>
                                 <h4 class="text-xs font-black truncate mt-1">${u.modelo}</h4>
-                                <p class="text-[10px] text-gray-500 font-bold truncate">Op: ${op ? op.nombre : 'No asignado'}</p>
+                                <p class="text-[10px] text-gray-500 font-bold truncate">Ops: ${nombresOps}</p>
                             </div>
                         </div>
                         <div class="grid grid-cols-2 gap-1.5 text-[11px] border-y py-1.5 font-semibold">
-                            <div><p class="text-[9px] text-gray-400 uppercase">Lectura</p><span>${u.valorActual} ${labelM}</span></div>
+                            <div><p class="text-[9px] text-gray-400 uppercase">Lectura Actual</p><span>${u.valorActual} ${labelM}</span></div>
                             <div><p class="text-[9px] text-gray-400 uppercase">Resta Mto.</p><span class="${rest <= 0 ? 'text-red-600 font-bold':''}">${rest <= 0 ? 'REQUERIDO' : rest.toFixed(1) + ' ' + labelM}</span></div>
-                            <div><p class="text-[9px] text-gray-400 uppercase">Trabajo Hoy</p><span>${u.horasTrabajadasHoy || 0} ${labelM}</span></div>
-                            <div><p class="text-[9px] text-gray-400 uppercase">Días estimados</p><span>${u.proyeccionDias ? u.proyeccionDias + ' Días' : 'Calculando...'}</span></div>
+                            <div><p class="text-[9px] text-gray-400 uppercase">Trabajado Hoy</p><span>${u.horasTrabajadasHoy || 0} ${labelM}</span></div>
+                            <div><p class="text-[9px] text-gray-400 uppercase">Días para Mto.</p><span>${u.proyeccionDias ? u.proyeccionDias + ' Días' : 'Calculando...'}</span></div>
                         </div>
                         <div class="text-[9px] grid grid-cols-2 gap-x-2 gap-y-0.5 font-bold bg-gray-50 p-1.5 rounded">
                             <div>SOAT: <span class="${s.c}">${s.txt}</span></div>
                             <div>CITV: <span class="${c.c}">${c.txt}</span></div>
                             <div>SEGURO: <span class="${seg.c}">${seg.txt}</span></div>
                             <div>CERT. OP: <span class="${cer.c}">${cer.txt}</span></div>
-                            ${cust ? `<div class="col-span-2 text-indigo-600 uppercase font-black">${u.customNombre || 'ALERT'}: <span class="${cust.c}">${cust.txt}</span></div>` : ''}
+                            ${cust ? `<div class="col-span-2 text-indigo-600 uppercase font-black">${u.customNombre || 'ALERTA'}: <span class="${cust.c}">${cust.txt}</span></div>` : ''}
                         </div>
                         <div class="flex gap-2 pt-1">
                             <button onclick="registrarJornadaDiaria('${u.id}')" class="w-full bg-industrial-500 text-gray-950 font-black py-1.5 text-[10px] rounded uppercase tracking-wider">Registrar Jornada (In/Fin)</button>
@@ -468,7 +512,7 @@
                 `;
             }).join('');
 
-            // Renderizado de la Bitácora de Observaciones
+            // Renderizado de Historial Técnico de Observaciones
             const obsVisibles = sesion.rol === 'operador' ? db.observaciones.filter(o => {
                 const u = db.unidades.find(x => x.id === o.unidadId);
                 return u && u.codigo === sesion.codigoAcceso;
@@ -490,7 +534,7 @@
                             </div>
                             <p class="text-gray-700 font-medium leading-tight">${o.detalle}</p>
                             <div class="flex gap-2 text-[9px] font-bold pt-1">
-                                <button onclick="subirFoto('${o.id}','observacion')" class="text-industrial-600"><i class="fa-solid fa-camera"></i> Foto</button>
+                                <button onclick="subirFoto('${o.id}','observacion')" class="text-industrial-600"><i class="fa-solid fa-camera"></i> Subir/Editar Foto</button>
                                 ${sesion.rol === 'admin' ? `
                                     <button onclick="cambiarEstadoObs('${o.id}','Inicio')" class="text-blue-600">Inicio</button>
                                     <button onclick="cambiarEstadoObs('${o.id}','En Proceso')" class="text-amber-600">Proceso</button>
