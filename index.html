@@ -3,19 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CART - Gestión Integral de Flotas</title>
-    <meta name="description" content="Sistema CART de control y gestión integral de flotas vehiculares e industriales.">
+    <title>FleetPro - Control e Inspección Integral de Flotas</title>
+    <meta name="description" content="Sistema profesional de control, mantenimiento, horómetros y abastecimiento de flotas industriales.">
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome CDN -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
     <script>
         tailwind.config = {
             theme: {
                 extend: {
                     colors: {
-                        industrial: {
+                        brand: {
+                            50: '#fffbe6',
+                            100: '#fef3c7',
                             500: '#f59e0b',
                             600: '#d97706',
-                            950: '#1e1b4b',
+                            700: '#b45309',
+                            900: '#78350f',
+                            950: '#0f172a'
                         }
                     }
                 }
@@ -23,204 +32,741 @@
         }
     </script>
     <style>
-        #toastMsg {
-            transition: opacity 0.4s ease, transform 0.4s ease;
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        
+        #toastMsg { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        #toastMsg.hide { opacity: 0; transform: translate(-50%, 20px) scale(0.95); pointer-events: none; }
+        #toastMsg.show { opacity: 1; transform: translate(-50%, 0) scale(1); }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
         }
-        #toastMsg.hide {
-            opacity: 0;
-            transform: translateY(20px);
-            pointer-events: none;
+
+        .tab-btn.active {
+            background-color: #f59e0b;
+            color: #0f172a;
+            font-weight: 800;
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25);
         }
-        #toastMsg.show {
-            opacity: 1;
-            transform: translateY(0);
+        
+        /* Print styles for executive report */
+        @media print {
+            header, nav, #btnCerrarSesion, #btnCompartir, .no-print { display: none !important; }
+            body { background: white !important; color: black !important; padding: 0 !important; }
+            .print-container { width: 100% !important; max-width: none !important; margin: 0 !important; }
+            .page-break { page-break-before: always; }
         }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen text-gray-900 pb-12">
+<body class="bg-slate-100 min-h-screen text-slate-900 pb-16 flex flex-col">
 
-    <!-- TOAST DE ESTADO -->
-    <div id="toastMsg" class="hide fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-gray-900 text-white text-xs font-bold px-5 py-2.5 rounded-full shadow-xl flex items-center gap-2">
-        <i id="toastIcon" class="fa-solid fa-circle-notch fa-spin"></i>
-        <span id="toastText">Guardando...</span>
+    <!-- TOAST DE NOTIFICACIONES -->
+    <div id="toastMsg" class="hide fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-slate-900 text-white text-xs font-bold px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border border-slate-700">
+        <i id="toastIcon" class="fa-solid fa-circle-notch fa-spin text-amber-400 text-base"></i>
+        <span id="toastText">Cargando datos del sistema...</span>
     </div>
 
-    <!-- PANTALLA DE INGRESO / LOGIN OBLIGATORIO -->
-    <div id="loginScreen" class="fixed inset-0 bg-gray-950 flex flex-col items-center justify-center z-40 p-4">
-        <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-sm space-y-4 border-t-4 border-industrial-500">
-            <div class="text-center">
-                <div class="bg-industrial-500 text-gray-950 w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-2 text-xl shadow">
-                    <i class="fa-solid fa-key"></i>
+    <!-- PANTALLA DE ACCESO / LOGIN (DISCRETO) -->
+    <div id="loginScreen" class="fixed inset-0 bg-slate-950 flex flex-col items-center justify-center z-50 p-4">
+        <div class="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-md space-y-6 border-t-8 border-amber-500 relative overflow-hidden">
+            <div class="absolute -top-12 -right-12 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl pointer-events-none"></div>
+            
+            <div class="text-center space-y-2">
+                <div class="bg-slate-950 text-amber-500 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto text-2xl shadow-lg border border-slate-800">
+                    <i class="fa-solid fa-shield-halved"></i>
                 </div>
-                <h2 class="text-base font-black uppercase tracking-wider">Control de Flota CART</h2>
-                <p class="text-[10px] text-gray-400 uppercase font-bold">Ingrese código de equipo o acceso general</p>
+                <h2 class="text-xl font-black uppercase tracking-wider text-slate-900">Control de Flota Industrial</h2>
+                <p class="text-xs text-slate-500 font-semibold">Ingrese código asignado de equipo o clave de supervisor</p>
             </div>
-            <div>
-                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Código de Acceso / Placa</label>
-                <input type="text" id="accessCodeInput" placeholder="Ej: CART o VOL-01"
-                    class="w-full border-2 border-gray-200 p-2 text-xs rounded-xl text-center font-bold tracking-widest uppercase outline-none focus:border-industrial-500">
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Código de Acceso / Placa de Equipo</label>
+                    <div class="relative">
+                        <input type="text" id="accessCodeInput" placeholder="Ej: VOL-01, EX-02..."
+                            class="w-full border-2 border-slate-200 p-3 text-sm rounded-xl text-center font-black tracking-widest uppercase outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/20 transition-all bg-slate-50">
+                        <i class="fa-solid fa-key absolute right-3 top-3.5 text-slate-400"></i>
+                    </div>
+                </div>
+                <p id="loginError" class="text-red-600 text-xs text-center font-bold hidden bg-red-50 p-2 rounded-lg border border-red-200">
+                    <i class="fa-solid fa-triangle-exclamation mr-1"></i> Código de acceso no registrado. Verifique e intente nuevamente.
+                </p>
+                <button id="btnIngresar" class="w-full bg-slate-950 hover:bg-slate-900 text-white text-xs font-black py-3 px-4 rounded-xl shadow-lg uppercase tracking-wider transition-all transform active:scale-95 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-right-to-bracket text-amber-400"></i> Iniciar Sesión en el Sistema
+                </button>
             </div>
-            <p id="loginError" class="text-red-500 text-[10px] text-center font-bold hidden">Ingrese un código válido.</p>
-            <button id="btnIngresar" class="w-full bg-gray-950 hover:bg-gray-900 text-white text-xs font-black py-2.5 px-4 rounded-xl shadow-md uppercase tracking-wider transition-all">
-                Ingresar al Sistema
-            </button>
+            
+            <div class="border-t pt-4 text-center">
+                <span class="text-[10px] text-slate-400 font-medium">FleetPro Core v3.5 &bull; Acceso seguro multitrol</span>
+            </div>
         </div>
     </div>
 
-    <!-- NAVEGACIÓN Y PANEL PRINCIPAL -->
-    <div id="appContent" class="hidden">
-        <!-- CABECERA -->
-        <header class="bg-gray-950 text-white shadow-md border-b-4 border-industrial-500 py-4 px-6 mb-6">
-            <div class="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
+    <!-- PANTALLA PRINCIPAL / NAVEGACIÓN -->
+    <div id="appContent" class="hidden flex-1 flex flex-col">
+
+        <!-- CABECERA PRINCIPAL -->
+        <header class="bg-slate-950 text-white shadow-xl border-b-4 border-amber-500 sticky top-0 z-40">
+            <div class="max-w-7xl mx-auto px-4 py-3 flex flex-col sm:flex-row justify-between items-center gap-3">
                 <div class="flex items-center gap-3">
-                    <div id="btnLogo" class="bg-industrial-500 text-gray-950 p-2 rounded-lg cursor-pointer flex items-center justify-center min-w-[40px] min-h-[40px]">
-                        <i id="appLogoIcon" class="fa-solid fa-truck-monster text-xl"></i>
-                        <img id="appLogoImg" src="" class="hidden w-8 h-8 object-contain rounded" alt="Logo">
+                    <div id="btnLogo" class="bg-amber-500 text-slate-950 p-2.5 rounded-xl cursor-pointer flex items-center justify-center shadow-md hover:bg-amber-400 transition-all">
+                        <i id="appLogoIcon" class="fa-solid fa-truck-monster text-2xl"></i>
+                        <img id="appLogoImg" src="" class="hidden w-10 h-10 object-contain rounded-lg" alt="Logo">
                     </div>
                     <div>
-                        <h1 id="btnLogoTitle" class="text-lg font-black tracking-wider cursor-pointer">CART | CONTROL DE FLOTA</h1>
-                        <p class="text-[9px] text-gray-400 uppercase tracking-widest">Sesión: <span id="sessionBadge" class="text-industrial-500"></span></p>
+                        <h1 id="btnLogoTitle" class="text-base sm:text-lg font-black tracking-wide text-white cursor-pointer flex items-center gap-2">
+                            FLEETPRO <span class="text-xs bg-amber-500/20 text-amber-400 border border-amber-500/40 px-2 py-0.5 rounded-full font-bold">FLOTAS</span>
+                        </h1>
+                        <p class="text-[11px] text-slate-400 font-semibold">Sesión activa: <span id="sessionBadge" class="text-amber-400 font-black"></span></p>
                     </div>
                 </div>
-                <div class="flex gap-2">
-                    <button id="btnCompartir" class="bg-gray-900 hover:bg-gray-800 border border-gray-800 text-gray-300 font-bold py-1.5 px-3 rounded-lg text-xs flex items-center gap-2 transition-all">
-                        <i class="fa-solid fa-share-nodes"></i> Compartir
+
+                <!-- MENU PESTAÑAS Y NAVEGACIÓN -->
+                <div class="flex items-center gap-2 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
+                    <button data-tab="tabDashboard" class="tab-btn active px-3.5 py-2 text-xs font-bold rounded-xl bg-slate-900 text-slate-300 hover:text-white transition-all flex items-center gap-1.5 whitespace-nowrap">
+                        <i class="fa-solid fa-chart-pie text-amber-400"></i> Dashboard
                     </button>
-                    <button id="btnCerrarSesion" class="bg-red-950 border border-red-900 text-red-200 font-bold py-1.5 px-3 rounded-lg text-xs transition-all">
-                        Salir <i class="fa-solid fa-right-from-bracket ml-1"></i>
+                    <button data-tab="tabEquipos" class="tab-btn px-3.5 py-2 text-xs font-bold rounded-xl bg-slate-900 text-slate-300 hover:text-white transition-all flex items-center gap-1.5 whitespace-nowrap">
+                        <i class="fa-solid fa-truck-ramp-box"></i> Equipos
+                    </button>
+                    <button data-tab="tabHorometros" class="tab-btn px-3.5 py-2 text-xs font-bold rounded-xl bg-slate-900 text-slate-300 hover:text-white transition-all flex items-center gap-1.5 whitespace-nowrap">
+                        <i class="fa-solid fa-gauge-high"></i> Histórico Horómetros
+                    </button>
+                    <button data-tab="tabCombustible" class="tab-btn px-3.5 py-2 text-xs font-bold rounded-xl bg-slate-900 text-slate-300 hover:text-white transition-all flex items-center gap-1.5 whitespace-nowrap">
+                        <i class="fa-solid fa-gas-pump"></i> Combustible
+                    </button>
+                    <button data-tab="tabObservaciones" class="tab-btn px-3.5 py-2 text-xs font-bold rounded-xl bg-slate-900 text-slate-300 hover:text-white transition-all flex items-center gap-1.5 whitespace-nowrap">
+                        <i class="fa-solid fa-clipboard-check"></i> Observaciones
+                    </button>
+
+                    <div class="h-6 w-px bg-slate-800 hidden sm:block"></div>
+
+                    <button id="btnImprimir" class="bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold p-2 text-xs rounded-xl transition-all" title="Imprimir / Exportar PDF">
+                        <i class="fa-solid fa-print"></i>
+                    </button>
+                    <button id="btnCerrarSesion" class="bg-red-950 hover:bg-red-900 border border-red-800 text-red-200 font-bold px-3 py-2 text-xs rounded-xl transition-all flex items-center gap-1.5">
+                        <i class="fa-solid fa-power-off"></i> Salir
                     </button>
                 </div>
             </div>
         </header>
 
-        <!-- PANEL DE MÉTRICAS GLOBALES -->
-        <section id="metricsPanel" class="max-w-7xl mx-auto px-4 mb-6 grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-200 text-center">
-                <p class="text-[9px] text-gray-400 font-bold uppercase">Equipos Operativos</p>
-                <h3 id="mEquiposOp" class="text-lg font-black text-emerald-600">0</h3>
-            </div>
-            <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-200 text-center">
-                <p class="text-[9px] text-gray-400 font-bold uppercase">Equipos de Baja</p>
-                <h3 id="mEquiposBaja" class="text-lg font-black text-red-500">0</h3>
-            </div>
-            <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-200 text-center">
-                <p class="text-[9px] text-gray-400 font-bold uppercase">Operadores Activos</p>
-                <h3 id="mOpsOp" class="text-lg font-black text-emerald-600">0</h3>
-            </div>
-            <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-200 text-center">
-                <p class="text-[9px] text-gray-400 font-bold uppercase">Operadores de Baja</p>
-                <h3 id="mOpsBaja" class="text-lg font-black text-red-500">0</h3>
-            </div>
-        </section>
+        <!-- CONTENIDO PRINCIPAL RECIPIENTE -->
+        <main class="max-w-7xl mx-auto px-4 py-6 w-full flex-1 print-container">
 
-        <main class="max-w-7xl mx-auto px-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- ============================================================ -->
+            <!-- PESTAÑA 1: DASHBOARD DE ALTO IMPACTO -->
+            <!-- ============================================================ -->
+            <section id="tabDashboard" class="tab-content space-y-6">
+                
+                <!-- RESUMEN EN CARDS DE MÉTRICAS -->
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between">
+                        <div class="flex justify-between items-center text-slate-400">
+                            <span class="text-[10px] font-black uppercase tracking-wider">Equipos Operativos</span>
+                            <i class="fa-solid fa-truck-front text-emerald-500 text-lg"></i>
+                        </div>
+                        <div class="mt-2">
+                            <h3 id="dashEquiposOp" class="text-2xl font-black text-emerald-600">0</h3>
+                            <p class="text-[10px] text-slate-400 font-medium mt-1">Disponibles en faena</p>
+                        </div>
+                    </div>
 
-            <!-- SECCIÓN FORMULARIOS (SOLO ADMIN) -->
-            <div id="adminFormsColumn" class="space-y-6 lg:col-span-1">
-                <!-- REGISTRAR OPERADOR -->
-                <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
-                    <h3 class="text-xs font-black text-gray-900 border-b pb-2 uppercase tracking-wider mb-3 text-industrial-600">
-                        <i class="fa-solid fa-user-plus mr-1"></i> 1. Plantilla de Operadores
-                    </h3>
-                    <form id="formOperador" class="space-y-2">
-                        <input type="text" id="opNombre" required placeholder="Nombre Completo" class="w-full border p-2 text-xs rounded-lg outline-none">
-                        <input type="text" id="opLicencia" required placeholder="DNI / Licencia" class="w-full border p-2 text-xs rounded-lg outline-none">
-                        <button type="submit" class="w-full bg-gray-950 text-white text-xs font-bold py-2 rounded-lg">Agregar Operador</button>
-                    </form>
-                    <div id="listaOperadores" class="mt-3 max-h-24 overflow-y-auto space-y-1"></div>
-                </div>
+                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between">
+                        <div class="flex justify-between items-center text-slate-400">
+                            <span class="text-[10px] font-black uppercase tracking-wider">Equipos en Baja / Taller</span>
+                            <i class="fa-solid fa-triangle-exclamation text-red-500 text-lg"></i>
+                        </div>
+                        <div class="mt-2">
+                            <h3 id="dashEquiposBaja" class="text-2xl font-black text-red-500">0</h3>
+                            <p class="text-[10px] text-slate-400 font-medium mt-1">En inoperatividad</p>
+                        </div>
+                    </div>
 
-                <!-- REGISTRAR EQUIPO -->
-                <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
-                    <h3 class="text-xs font-black text-gray-900 border-b pb-2 uppercase tracking-wider mb-3 text-industrial-600">
-                        <i class="fa-solid fa-square-plus mr-1"></i> 2. Registrar Unidad
-                    </h3>
-                    <form id="formUnidad" class="space-y-2">
-                        <div class="grid grid-cols-2 gap-2">
-                            <input type="text" id="unidadCodigo" required placeholder="Código (Ej: VOL-01)" class="w-full border p-2 text-xs rounded-lg uppercase">
-                            <input type="text" id="unidadModelo" required placeholder="Modelo (Ej: Volvo FMX)" class="w-full border p-2 text-xs rounded-lg">
+                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between">
+                        <div class="flex justify-between items-center text-slate-400">
+                            <span class="text-[10px] font-black uppercase tracking-wider">Horas Totales Faena</span>
+                            <i class="fa-solid fa-stopwatch text-amber-500 text-lg"></i>
                         </div>
-                        <div class="grid grid-cols-2 gap-2">
-                            <select id="unidadLinea" class="w-full border p-2 text-xs rounded-lg">
-                                <option value="Amarilla">Línea Amarilla</option>
-                                <option value="Blanca">Línea Blanca</option>
-                            </select>
-                            <select id="unidadMedicion" class="w-full border p-2 text-xs rounded-lg">
-                                <option value="Horometro">Horas (Hrs)</option>
-                                <option value="Odometro">Kilómetros (Km)</option>
-                            </select>
+                        <div class="mt-2">
+                            <h3 id="dashHorasTotales" class="text-2xl font-black text-slate-900">0</h3>
+                            <p class="text-[10px] text-slate-400 font-medium mt-1">Acumulado registrado</p>
                         </div>
-                        <div class="grid grid-cols-2 gap-2">
-                            <input type="number" id="unidadValorActual" required placeholder="Lectura Inicial Fija" class="w-full border p-2 text-xs rounded-lg">
-                            <input type="number" id="unidadValorProximo" required placeholder="Límite Próx. Mto." class="w-full border p-2 text-xs rounded-lg">
+                    </div>
+
+                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between">
+                        <div class="flex justify-between items-center text-slate-400">
+                            <span class="text-[10px] font-black uppercase tracking-wider">Combustible Total</span>
+                            <i class="fa-solid fa-gas-pump text-blue-500 text-lg"></i>
                         </div>
-                        <div>
-                            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Asignar Uno o Más Operadores:</label>
-                            <div id="contenedorCheckboxesOperadores" class="border rounded-lg p-2 max-h-28 overflow-y-auto space-y-1 bg-gray-50"></div>
+                        <div class="mt-2">
+                            <h3 id="dashCombustibleTotal" class="text-2xl font-black text-blue-600">0 Gal</h3>
+                            <p id="dashCostoCombustible" class="text-[10px] text-slate-500 font-bold mt-1">S/ 0.00 invertidos</p>
                         </div>
-                        <div class="grid grid-cols-2 gap-1 text-[10px]">
-                            <label>SOAT:<input type="date" id="unidadSoat" class="w-full border p-1 rounded"></label>
-                            <label>CITV:<input type="date" id="unidadCitv" class="w-full border p-1 rounded"></label>
-                            <label>Seguro:<input type="date" id="unidadSeguro" class="w-full border p-1 rounded"></label>
-                            <label>Cert. Operatividad:<input type="date" id="unidadCert" class="w-full border p-1 rounded"></label>
+                    </div>
+
+                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between col-span-2 md:col-span-1">
+                        <div class="flex justify-between items-center text-slate-400">
+                            <span class="text-[10px] font-black uppercase tracking-wider">Alertas Documentarias</span>
+                            <i class="fa-solid fa-bell text-red-600 text-lg"></i>
                         </div>
-                        <div class="border-t pt-2 mt-1">
-                            <label class="block text-[9px] font-black text-gray-400 uppercase">Alerta Adicional Personalizada (Opcional)</label>
-                            <div class="grid grid-cols-2 gap-1 mt-1">
-                                <input type="text" id="unidadCustomNombre" placeholder="Nombre Alerta" class="border p-1 text-[10px] rounded">
-                                <input type="date" id="unidadCustomFecha" class="border p-1 text-[10px] rounded">
+                        <div class="mt-2 flex items-center justify-between">
+                            <div>
+                                <h3 id="dashAlertasCriticas" class="text-2xl font-black text-red-600">0</h3>
+                                <p class="text-[10px] text-red-500 font-bold mt-1">Vencidas / Urgentes</p>
+                            </div>
+                            <div class="text-right">
+                                <h4 id="dashAlertasWarn" class="text-lg font-black text-amber-500">0</h4>
+                                <p class="text-[10px] text-amber-600 font-bold">Por vencer (&lt;30d)</p>
                             </div>
                         </div>
-                        <button type="submit" class="w-full bg-gray-950 text-white text-xs font-bold py-2 rounded-lg">Registrar Unidad</button>
-                    </form>
-                </div>
-            </div>
-
-            <!-- COLUMNA REGISTRO DE REPORTES -->
-            <div id="comunReportColumn" class="space-y-6 lg:col-span-1">
-                <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
-                    <h3 class="text-xs font-black text-gray-900 border-b pb-2 uppercase tracking-wider mb-3 text-industrial-600">
-                        <i class="fa-solid fa-bullhorn mr-1"></i> Reportar Observación Técnico
-                    </h3>
-                    <form id="formObservacion" class="space-y-3">
-                        <select id="obsUnidad" required class="w-full border p-2 text-xs rounded-lg"></select>
-                        <textarea id="obsDetalle" required rows="2" placeholder="Describa la anomalía o evento técnico detectado..." class="w-full border p-2 text-xs rounded-lg outline-none"></textarea>
-                        <button type="submit" class="w-full bg-industrial-500 hover:bg-industrial-600 text-white text-xs font-black py-2 rounded-lg uppercase">Guardar Reporte</button>
-                    </form>
-                </div>
-            </div>
-
-            <!-- COLUMNA VISUALIZACIÓN -->
-            <div id="displayColumn" class="lg:col-span-2 space-y-6">
-                <!-- FILTROS -->
-                <div id="adminFilters" class="flex justify-between items-center bg-white p-3 rounded-xl border border-gray-200">
-                    <div class="flex gap-1">
-                        <button id="btnFiltroTodos"    class="px-3 py-1 text-xs font-bold rounded-lg bg-industrial-500 text-white">Todos</button>
-                        <button id="btnFiltroAmarilla" class="px-3 py-1 text-xs font-bold rounded-lg bg-gray-200 text-gray-700">Amarilla</button>
-                        <button id="btnFiltroBlanca"   class="px-3 py-1 text-xs font-bold rounded-lg bg-gray-200 text-gray-700">Blanca</button>
                     </div>
-                    <input type="text" id="buscadorInput" placeholder="Buscar equipo..." class="border px-3 py-1 text-xs rounded-lg outline-none w-40">
                 </div>
 
-                <!-- GRILLA TARJETAS EQUIPOS -->
-                <div id="gridUnidades" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                <!-- GRÁFICOS INTERACTIVOS (CHART.JS) -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                        <div class="flex justify-between items-center border-b pb-3 mb-4">
+                            <h3 class="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-2">
+                                <i class="fa-solid fa-chart-column text-amber-500"></i> Lectura Acumulada por Equipo (Hrs / Km)
+                            </h3>
+                        </div>
+                        <div class="relative h-64">
+                            <canvas id="chartHorometros"></canvas>
+                        </div>
+                    </div>
 
-                <!-- BITÁCORA -->
-                <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
-                    <h3 class="text-xs font-black text-gray-900 border-b pb-2 uppercase tracking-wider mb-3">
-                        <i class="fa-solid fa-clock-rotate-left mr-1 text-industrial-500"></i> Historial Técnico de Observaciones
-                    </h3>
-                    <div id="listaObservaciones" class="space-y-3 max-h-80 overflow-y-auto"></div>
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                        <div class="flex justify-between items-center border-b pb-3 mb-4">
+                            <h3 class="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-2">
+                                <i class="fa-solid fa-chart-line text-blue-500"></i> Consumo de Combustible Acumulado (Gal)
+                            </h3>
+                        </div>
+                        <div class="relative h-64">
+                            <canvas id="chartCombustible"></canvas>
+                        </div>
+                    </div>
                 </div>
-            </div>
+
+                <!-- TABLA MATRIZ DE CRITICIDAD Y ALERTAS -->
+                <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 space-y-4">
+                    <div class="flex justify-between items-center border-b pb-3">
+                        <h3 class="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                            <i class="fa-solid fa-triangle-exclamation text-red-500"></i> Matriz Documentaria &amp; Mantenimientos por Criticidad
+                        </h3>
+                        <span class="text-[10px] font-bold px-2 py-1 bg-slate-100 text-slate-600 rounded-lg">Filtro automático</span>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-slate-950 text-white uppercase text-[10px] tracking-wider">
+                                <tr>
+                                    <th class="p-3 rounded-l-lg">Equipo</th>
+                                    <th class="p-3">Línea</th>
+                                    <th class="p-3">Lectura</th>
+                                    <th class="p-3">Próx. Mantenimiento</th>
+                                    <th class="p-3">SOAT</th>
+                                    <th class="p-3">CITV</th>
+                                    <th class="p-3">Seguro</th>
+                                    <th class="p-3">Cert. Operatividad</th>
+                                    <th class="p-3 rounded-r-lg">Alerta Especial</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tablaMatrizAlertas" class="divide-y divide-slate-100 font-medium text-[11px]">
+                                <!-- Generado dinámicamente con badges de color por criticidad -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============================================================ -->
+            <!-- PESTAÑA 2: GESTIÓN DE EQUIPOS Y OPERADORES -->
+            <!-- ============================================================ -->
+            <section id="tabEquipos" class="tab-content hidden space-y-6">
+                
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                    <!-- COLUMNA REGISTROS (ADMINISTRADOR) -->
+                    <div id="adminFormEquiposCol" class="space-y-6 lg:col-span-1 hidden">
+                        <!-- REGISTRO DE OPERADOR -->
+                        <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 space-y-3">
+                            <h3 class="text-xs font-black text-slate-900 border-b pb-2 uppercase tracking-wider text-amber-600 flex items-center gap-2">
+                                <i class="fa-solid fa-user-plus"></i> 1. Plantilla de Operadores
+                            </h3>
+                            <form id="formOperador" class="space-y-2">
+                                <input type="text" id="opNombre" required placeholder="Nombre Completo del Operador" class="w-full border p-2.5 text-xs rounded-xl outline-none focus:border-amber-500">
+                                <input type="text" id="opLicencia" required placeholder="DNI / Licencia de Conducir" class="w-full border p-2.5 text-xs rounded-xl outline-none focus:border-amber-500">
+                                <button type="submit" class="w-full bg-slate-950 hover:bg-slate-900 text-white text-xs font-bold py-2.5 rounded-xl uppercase tracking-wider shadow">
+                                    <i class="fa-solid fa-plus text-amber-400 mr-1"></i> Guardar Operador
+                                </button>
+                            </form>
+                            <div id="listaOperadores" class="mt-3 max-h-32 overflow-y-auto space-y-1.5 border-t pt-2"></div>
+                        </div>
+
+                        <!-- REGISTRO / EDICIÓN DE UNIDAD -->
+                        <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 space-y-3">
+                            <h3 id="tituloFormUnidad" class="text-xs font-black text-slate-900 border-b pb-2 uppercase tracking-wider text-amber-600 flex items-center justify-between">
+                                <span><i class="fa-solid fa-square-plus mr-1"></i> <span id="lblFormUnidadAccion">2. Registrar</span> Unidad / Equipo</span>
+                                <button id="btnCancelarEditUnidad" type="button" class="text-[10px] text-red-500 font-bold uppercase hidden">Cancelar</button>
+                            </h3>
+                            <form id="formUnidad" class="space-y-2">
+                                <input type="hidden" id="editUnidadId" value="">
+                                
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="block text-[9px] font-bold text-slate-400 uppercase mb-0.5">Código Equipo</label>
+                                        <input type="text" id="unidadCodigo" required placeholder="Ej: VOL-01" class="w-full border p-2 text-xs rounded-xl uppercase font-bold">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[9px] font-bold text-slate-400 uppercase mb-0.5">Modelo / Tipo</label>
+                                        <input type="text" id="unidadModelo" required placeholder="Ej: Volvo FMX 8x4" class="w-full border p-2 text-xs rounded-xl">
+                                    </div>
+                                </div>
+
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="block text-[9px] font-bold text-slate-400 uppercase mb-0.5">Línea Flota</label>
+                                        <select id="unidadLinea" class="w-full border p-2 text-xs rounded-xl bg-white">
+                                            <option value="Amarilla">Línea Amarilla (Pesada)</option>
+                                            <option value="Blanca">Línea Blanca (Transporte)</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-[9px] font-bold text-slate-400 uppercase mb-0.5">Medición</label>
+                                        <select id="unidadMedicion" class="w-full border p-2 text-xs rounded-xl bg-white">
+                                            <option value="Horometro">Horómetro (Hrs)</option>
+                                            <option value="Odometro">Odómetro (Km)</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="block text-[9px] font-bold text-slate-400 uppercase mb-0.5">Lectura Actual</label>
+                                        <input type="number" step="0.1" id="unidadValorActual" required placeholder="0.0" class="w-full border p-2 text-xs rounded-xl font-bold">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[9px] font-bold text-slate-400 uppercase mb-0.5">Límite Próx. Mto.</label>
+                                        <input type="number" step="0.1" id="unidadValorProximo" required placeholder="500.0" class="w-full border p-2 text-xs rounded-xl font-bold">
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Asignar Operadores:</label>
+                                    <div id="contenedorCheckboxesOperadores" class="border rounded-xl p-2 max-h-24 overflow-y-auto space-y-1 bg-slate-50"></div>
+                                </div>
+
+                                <!-- SUBIR FOTO DE EQUIPO DESDE CELULAR -->
+                                <div class="bg-amber-50/50 p-2.5 rounded-xl border border-amber-200 space-y-1.5">
+                                    <label class="block text-[10px] font-black text-amber-900 uppercase">
+                                        <i class="fa-solid fa-camera mr-1 text-amber-600"></i> Imagen del Equipo (Celular / Archivo)
+                                    </label>
+                                    <input type="file" id="unidadFotoFile" accept="image/*" capture="environment" class="w-full text-[10px] text-slate-600 file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-amber-500 file:text-slate-950 hover:file:bg-amber-400 cursor-pointer">
+                                    <input type="hidden" id="unidadFotoBase64" value="">
+                                    <div id="previewUnidadFoto" class="hidden flex items-center gap-2 pt-1">
+                                        <img id="imgPreviewUnidad" src="" class="w-10 h-10 object-cover rounded-lg border shadow-sm" alt="Preview">
+                                        <span class="text-[9px] text-emerald-600 font-bold">Imagen cargada ✓</span>
+                                    </div>
+                                </div>
+
+                                <div class="grid grid-cols-2 gap-1.5 text-[10px]">
+                                    <div>
+                                        <label class="block text-slate-500 font-bold uppercase">SOAT:</label>
+                                        <input type="date" id="unidadSoat" class="w-full border p-1 rounded-lg">
+                                    </div>
+                                    <div>
+                                        <label class="block text-slate-500 font-bold uppercase">CITV / Rev. Técnica:</label>
+                                        <input type="date" id="unidadCitv" class="w-full border p-1 rounded-lg">
+                                    </div>
+                                    <div>
+                                        <label class="block text-slate-500 font-bold uppercase">Seguro Trebol/Venc:</label>
+                                        <input type="date" id="unidadSeguro" class="w-full border p-1 rounded-lg">
+                                    </div>
+                                    <div>
+                                        <label class="block text-slate-500 font-bold uppercase">Cert. Operatividad:</label>
+                                        <input type="date" id="unidadCert" class="w-full border p-1 rounded-lg">
+                                    </div>
+                                </div>
+
+                                <div class="border-t pt-2">
+                                    <label class="block text-[9px] font-black text-slate-400 uppercase">Alerta Personalizada (Opcional)</label>
+                                    <div class="grid grid-cols-2 gap-1.5 mt-1">
+                                        <input type="text" id="unidadCustomNombre" placeholder="Nombre Alerta" class="border p-1.5 text-[10px] rounded-lg">
+                                        <input type="date" id="unidadCustomFecha" class="border p-1.5 text-[10px] rounded-lg">
+                                    </div>
+                                </div>
+
+                                <button id="btnSubmitUnidad" type="submit" class="w-full bg-slate-950 text-white text-xs font-bold py-2.5 rounded-xl shadow uppercase tracking-wider">
+                                    Registrar Unidad
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- GRILLA DE TARJETAS DE EQUIPOS (VISUALIZACIÓN Y JORNADAS) -->
+                    <div id="displayEquiposCol" class="space-y-6 lg:col-span-3">
+                        
+                        <!-- BARRA DE FILTROS Y BÚSQUEDA -->
+                        <div class="flex flex-col sm:flex-row justify-between items-center bg-white p-3.5 rounded-2xl border border-slate-200 gap-3 shadow-sm">
+                            <div class="flex gap-1.5 w-full sm:w-auto">
+                                <button id="btnFiltroTodos"    class="px-3.5 py-1.5 text-xs font-bold rounded-xl bg-amber-500 text-slate-950">Todos</button>
+                                <button id="btnFiltroAmarilla" class="px-3.5 py-1.5 text-xs font-bold rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200">Amarilla</button>
+                                <button id="btnFiltroBlanca"   class="px-3.5 py-1.5 text-xs font-bold rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200">Blanca</button>
+                            </div>
+                            <div class="relative w-full sm:w-64">
+                                <input type="text" id="buscadorInput" placeholder="Buscar equipo por código o modelo..." class="w-full border pl-8 pr-3 py-1.5 text-xs rounded-xl outline-none focus:border-amber-500">
+                                <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2.5 text-slate-400 text-xs"></i>
+                            </div>
+                        </div>
+
+                        <!-- GRILLA DE TARJETAS DE EQUIPOS -->
+                        <div id="gridUnidades" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                            <!-- Inyectado por Javascript -->
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
+            <!-- ============================================================ -->
+            <!-- PESTAÑA 3: HISTÓRICO DE HORÓMETROS Y JORNADAS -->
+            <!-- ============================================================ -->
+            <section id="tabHorometros" class="tab-content hidden space-y-6">
+                
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-4">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b pb-4 gap-3">
+                        <div>
+                            <h3 class="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                                <i class="fa-solid fa-clock-rotate-left text-amber-500"></i> Histórico Registrado de Horómetros / Jornadas
+                            </h3>
+                            <p class="text-xs text-slate-500 font-medium">Registro permanente de lecturas iniciales, finales y trabajo diario por equipo</p>
+                        </div>
+                        <div class="flex gap-2 w-full sm:w-auto">
+                            <select id="filtroEquipoHorometro" class="border px-3 py-1.5 text-xs rounded-xl font-semibold outline-none bg-slate-50">
+                                <option value="">Todos los equipos</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-slate-950 text-white uppercase text-[10px] tracking-wider">
+                                <tr>
+                                    <th class="p-3 rounded-l-lg">Fecha</th>
+                                    <th class="p-3">Equipo</th>
+                                    <th class="p-3">Lectura Inicial</th>
+                                    <th class="p-3">Lectura Final</th>
+                                    <th class="p-3">Total Trabajado</th>
+                                    <th class="p-3">Operador / Usuario</th>
+                                    <th class="p-3">Observaciones / Notas</th>
+                                    <th class="p-3 rounded-r-lg text-center">Acciones (Admin)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tablaHistoricoHorometros" class="divide-y divide-slate-100 font-medium">
+                                <!-- Inyectado dinámicamente -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </section>
+
+            <!-- ============================================================ -->
+            <!-- PESTAÑA 4: ABASTECIMIENTO DE COMBUSTIBLE Y MANTENIMIENTOS -->
+            <!-- ============================================================ -->
+            <section id="tabCombustible" class="tab-content hidden space-y-6">
+                
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                    <!-- REGISTRO DE ABASTECIMIENTO -->
+                    <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 space-y-4 lg:col-span-1">
+                        <h3 class="text-xs font-black text-slate-900 border-b pb-2 uppercase tracking-wider text-blue-600 flex items-center gap-2">
+                            <i class="fa-solid fa-gas-pump"></i> Registrar Abastecimiento de Combustible
+                        </h3>
+                        <form id="formCombustible" class="space-y-3">
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Seleccionar Equipo</label>
+                                <select id="combUnidad" required class="w-full border p-2 text-xs rounded-xl bg-white"></select>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Fecha</label>
+                                    <input type="date" id="combFecha" required class="w-full border p-2 text-xs rounded-xl">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Galones / Litros</label>
+                                    <input type="number" step="0.01" id="combGalones" required placeholder="0.00" class="w-full border p-2 text-xs rounded-xl font-bold">
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Costo Total (S/)</label>
+                                    <input type="number" step="0.1" id="combCosto" placeholder="0.00" class="w-full border p-2 text-xs rounded-xl font-bold">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Horómetro al Cargar</label>
+                                    <input type="number" step="0.1" id="combHorometro" placeholder="0.0" class="w-full border p-2 text-xs rounded-xl">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Grifo / Estación / N° Ticket</label>
+                                <input type="text" id="combGrifo" placeholder="Ej: Grifo Primax - Ticket #1042" class="w-full border p-2 text-xs rounded-xl">
+                            </div>
+                            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-black py-2.5 rounded-xl uppercase tracking-wider shadow">
+                                <i class="fa-solid fa-plus mr-1"></i> Guardar Carga de Combustible
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- REGISTRO DE MANTENIMIENTO -->
+                    <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 space-y-4 lg:col-span-1">
+                        <h3 class="text-xs font-black text-slate-900 border-b pb-2 uppercase tracking-wider text-amber-600 flex items-center gap-2">
+                            <i class="fa-solid fa-wrench"></i> Registrar Mantenimiento de Equipo
+                        </h3>
+                        <form id="formMantenimiento" class="space-y-3">
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Seleccionar Equipo</label>
+                                <select id="mtoUnidad" required class="w-full border p-2 text-xs rounded-xl bg-white"></select>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Fecha Mto.</label>
+                                    <input type="date" id="mtoFecha" required class="w-full border p-2 text-xs rounded-xl">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Tipo de Mto.</label>
+                                    <select id="mtoTipo" class="w-full border p-2 text-xs rounded-xl bg-white">
+                                        <option value="Preventivo">Preventivo (PM)</option>
+                                        <option value="Correctivo">Correctivo</option>
+                                        <option value="Predictivo">Overhaul / Mayor</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Horómetro Actual</label>
+                                    <input type="number" step="0.1" id="mtoHorometro" placeholder="0.0" class="w-full border p-2 text-xs rounded-xl">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Próximo Mto. (Límite)</label>
+                                    <input type="number" step="0.1" id="mtoProximo" placeholder="+250 hrs / +500 hrs" class="w-full border p-2 text-xs rounded-xl font-bold">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Detalle / repuestos cambiados</label>
+                                <textarea id="mtoDetalle" rows="2" placeholder="Ej: Cambio de filtro de aceite, aceite motor 15W40, engrase general..." class="w-full border p-2 text-xs rounded-xl"></textarea>
+                            </div>
+                            <button type="submit" class="w-full bg-slate-950 hover:bg-slate-900 text-white text-xs font-black py-2.5 rounded-xl uppercase tracking-wider shadow">
+                                <i class="fa-solid fa-plus text-amber-400 mr-1"></i> Guardar Registro de Mto.
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- RESUMEN ACUMULADO COMBUSTIBLE -->
+                    <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 space-y-4 lg:col-span-1 flex flex-col justify-between">
+                        <div>
+                            <h3 class="text-xs font-black text-slate-900 border-b pb-2 uppercase tracking-wider text-emerald-600 flex items-center gap-2">
+                                <i class="fa-solid fa-receipt"></i> Balance de Combustible &amp; Mantenimiento
+                            </h3>
+                            <div class="space-y-3 mt-4">
+                                <div class="bg-blue-50 p-3.5 rounded-xl border border-blue-100 flex justify-between items-center">
+                                    <div>
+                                        <p class="text-[10px] text-blue-600 font-black uppercase">Total Galones Suministrados</p>
+                                        <h4 id="lblSumGalones" class="text-xl font-black text-blue-900">0.00 Gal</h4>
+                                    </div>
+                                    <i class="fa-solid fa-oil-can text-blue-400 text-2xl"></i>
+                                </div>
+                                <div class="bg-emerald-50 p-3.5 rounded-xl border border-emerald-100 flex justify-between items-center">
+                                    <div>
+                                        <p class="text-[10px] text-emerald-600 font-black uppercase">Costo Acumulado Combustible</p>
+                                        <h4 id="lblSumCostoComb" class="text-xl font-black text-emerald-900">S/ 0.00</h4>
+                                    </div>
+                                    <i class="fa-solid fa-money-bill-wave text-emerald-400 text-2xl"></i>
+                                </div>
+                                <div class="bg-amber-50 p-3.5 rounded-xl border border-amber-100 flex justify-between items-center">
+                                    <div>
+                                        <p class="text-[10px] text-amber-700 font-black uppercase">Mantenimientos Realizados</p>
+                                        <h4 id="lblCountMtos" class="text-xl font-black text-amber-950">0 Registros</h4>
+                                    </div>
+                                    <i class="fa-solid fa-screws-tilting text-amber-500 text-2xl"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="text-[10px] text-slate-400 text-center font-semibold mt-4">Los datos se consolidan en tiempo real para reporte ejecutivo.</p>
+                    </div>
+
+                </div>
+
+                <!-- TABLAS DE HISTÓRICO COMBUSTIBLE Y MANTENIMIENTOS -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- HISTÓRICO DE COMBUSTIBLE -->
+                    <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 space-y-3">
+                        <h3 class="text-xs font-black text-slate-900 border-b pb-2 uppercase tracking-wider flex justify-between items-center">
+                            <span><i class="fa-solid fa-gas-pump text-blue-500 mr-1"></i> Histórico de Abastecimientos</span>
+                        </h3>
+                        <div class="overflow-x-auto max-h-72 overflow-y-auto">
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-slate-950 text-white uppercase text-[9px]">
+                                    <tr>
+                                        <th class="p-2">Fecha</th>
+                                        <th class="p-2">Equipo</th>
+                                        <th class="p-2">Galones</th>
+                                        <th class="p-2">Costo (S/)</th>
+                                        <th class="p-2">Horómetro</th>
+                                        <th class="p-2 text-center">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tablaHistoricoCombustible" class="divide-y divide-slate-100 text-[11px]"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- HISTÓRICO DE MANTENIMIENTOS -->
+                    <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 space-y-3">
+                        <h3 class="text-xs font-black text-slate-900 border-b pb-2 uppercase tracking-wider flex justify-between items-center">
+                            <span><i class="fa-solid fa-wrench text-amber-500 mr-1"></i> Histórico de Mantenimientos</span>
+                        </h3>
+                        <div class="overflow-x-auto max-h-72 overflow-y-auto">
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-slate-950 text-white uppercase text-[9px]">
+                                    <tr>
+                                        <th class="p-2">Fecha</th>
+                                        <th class="p-2">Equipo</th>
+                                        <th class="p-2">Tipo</th>
+                                        <th class="p-2">Horómetro</th>
+                                        <th class="p-2">Detalle</th>
+                                        <th class="p-2 text-center">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tablaHistoricoMantenimientos" class="divide-y divide-slate-100 text-[11px]"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </section>
+
+            <!-- ============================================================ -->
+            <!-- PESTAÑA 5: REPORTES DE OBSERVACIONES Y EVENTOS TÉCNICOS -->
+            <!-- ============================================================ -->
+            <section id="tabObservaciones" class="tab-content hidden space-y-6">
+                
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                    <!-- NUEVO REPORTE TÉCNICO -->
+                    <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 space-y-4 lg:col-span-1">
+                        <h3 class="text-xs font-black text-slate-900 border-b pb-2 uppercase tracking-wider text-amber-600 flex items-center gap-2">
+                            <i class="fa-solid fa-bullhorn"></i> Reportar Evento / Anomalía Técnica
+                        </h3>
+                        <form id="formObservacion" class="space-y-3">
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Seleccionar Equipo</label>
+                                <select id="obsUnidad" required class="w-full border p-2.5 text-xs rounded-xl bg-white"></select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Detalle del hallazgo u observación</label>
+                                <textarea id="obsDetalle" required rows="3" placeholder="Describa la falla, fuga de aceite, desgaste de neumáticos o evento técnico..." class="w-full border p-2.5 text-xs rounded-xl outline-none focus:border-amber-500"></textarea>
+                            </div>
+
+                            <!-- ADMITIR IMÁGENES SUBIDAS DESDE EL CELULAR EN OBSERVACIONES -->
+                            <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
+                                <label class="block text-[10px] font-black text-slate-700 uppercase">
+                                    <i class="fa-solid fa-camera text-amber-500 mr-1"></i> Evidencia Fotográfica (Celular / Galería)
+                                </label>
+                                <input type="file" id="obsFotoFile" accept="image/*" capture="environment" class="w-full text-[10px] text-slate-600 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-slate-950 file:text-white hover:file:bg-slate-800 cursor-pointer">
+                                <input type="hidden" id="obsFotoBase64" value="">
+                                <div id="previewObsFoto" class="hidden flex items-center gap-2 pt-1">
+                                    <img id="imgPreviewObs" src="" class="w-12 h-12 object-cover rounded-lg border shadow-sm" alt="Preview">
+                                    <span class="text-[9px] text-emerald-600 font-bold">Foto adjuntada ✓</span>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-black py-3 rounded-xl uppercase tracking-wider shadow">
+                                <i class="fa-solid fa-paper-plane mr-1"></i> Guardar Reporte Técnico
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- LISTA E HISTORIAL DE OBSERVACIONES -->
+                    <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 space-y-4 lg:col-span-2">
+                        <div class="flex justify-between items-center border-b pb-3">
+                            <h3 class="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                                <i class="fa-solid fa-list-check text-amber-500"></i> Bitácora e Histórico de Observaciones
+                            </h3>
+                            <span class="text-[10px] font-bold text-slate-400">Total: <span id="cantObs" class="text-slate-900">0</span></span>
+                        </div>
+
+                        <div id="listaObservaciones" class="space-y-3 max-h-[500px] overflow-y-auto pr-1">
+                            <!-- Inyectado dinámicamente -->
+                        </div>
+                    </div>
+
+                </div>
+
+            </section>
+
         </main>
     </div>
 
-    <!-- SCRIPT PRINCIPAL -->
+    <!-- MODAL DE REGISTRO DE JORNADA DIARIA -->
+    <div id="modalJornada" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl p-6 shadow-2xl max-w-md w-full border-t-8 border-amber-500 space-y-4">
+            <div class="flex justify-between items-start border-b pb-3">
+                <div>
+                    <h3 class="text-base font-black uppercase tracking-wider text-slate-900">Registrar Jornada Diaria</h3>
+                    <p id="modalJornadaEquipo" class="text-xs text-amber-600 font-bold">VOL-01 - Volvo FMX</p>
+                </div>
+                <button type="button" id="btnCerrarModalJornada" class="text-slate-400 hover:text-slate-700 text-xl font-bold">&times;</button>
+            </div>
+
+            <form id="formJornadaModal" class="space-y-3">
+                <input type="hidden" id="jornadaUnidadId" value="">
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Fecha de Operación</label>
+                    <input type="date" id="jornadaFecha" required class="w-full border p-2.5 text-xs rounded-xl font-bold">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Lectura INICIAL (<span id="lblJornadaUnidadMedida1">Hrs</span>)</label>
+                        <input type="number" step="0.1" id="jornadaIni" required class="w-full border p-2.5 text-xs rounded-xl font-bold">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Lectura FINAL (<span id="lblJornadaUnidadMedida2">Hrs</span>)</label>
+                        <input type="number" step="0.1" id="jornadaFin" required class="w-full border p-2.5 text-xs rounded-xl font-bold">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Operador a cargo</label>
+                    <select id="jornadaOperador" class="w-full border p-2.5 text-xs rounded-xl bg-white"></select>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Observaciones / Ruta del día</label>
+                    <input type="text" id="jornadaNotas" placeholder="Ej: Operación en tajo principal / traslado de agregados" class="w-full border p-2.5 text-xs rounded-xl">
+                </div>
+                <button type="submit" class="w-full bg-slate-950 hover:bg-slate-900 text-white text-xs font-black py-3 rounded-xl uppercase tracking-wider shadow mt-2">
+                    <i class="fa-solid fa-floppy-disk text-amber-400 mr-1"></i> Guardar Lectura e Histórico
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL PARA VISUALIZACIÓN DE FOTOS -->
+    <div id="modalFotoZoom" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="relative max-w-3xl w-full flex flex-col items-center">
+            <button id="btnCerrarModalFoto" class="absolute -top-10 right-0 text-white text-2xl font-black hover:text-amber-400">&times; Cerrar</button>
+            <img id="imgZoomModal" src="" class="max-h-[80vh] w-auto object-contain rounded-2xl border-2 border-slate-700 shadow-2xl" alt="Foto ampliada">
+        </div>
+    </div>
+
+    <!-- SCRIPT PRINCIPAL CON LÓGICA REPOTENCIADA -->
     <script type="module">
         import { initializeApp }             from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
+        // Configuración de Firebase
         const firebaseConfig = {
             apiKey:            "AIzaSyCG6sTwnI3IeV6QkTGTr4W5BxglfWdS2CM",
             authDomain:        "control-flota-cart.firebaseapp.com",
@@ -231,23 +777,42 @@
             measurementId:     "G-T3SD7JZ1XR"
         };
 
-        const fbApp       = initializeApp(firebaseConfig);
-        const dbFirestore = getFirestore(fbApp);
-        const COL         = "configuracion";
-        const DOC_ID      = "flota_datos";
+        let dbFirestore = null;
+        try {
+            const fbApp = initializeApp(firebaseConfig);
+            dbFirestore = getFirestore(fbApp);
+        } catch(e) {
+            console.warn("Firebase no inicializado:", e);
+        }
 
-        let db = { unidades: [], operadores: [], observaciones: [], configGral: { logoUrl: "" } };
-        let sesion       = { rol: "", codigoAcceso: "" };
+        const COL = "configuracion";
+        const DOC_ID = "flota_datos";
+        const LOCAL_KEY = "fleetpro_local_db_v3";
+
+        // Estructura General de la Base de Datos
+        let db = {
+            unidades: [],
+            operadores: [],
+            observaciones: [],
+            horometrosHistorico: [],
+            combustibleHistorico: [],
+            mantenimientosHistorico: [],
+            configGral: { logoUrl: "", adminPass: "CART" }
+        };
+
+        let sesion = { rol: "", codigoAcceso: "" };
         let filtroActual = "Todos";
+        let chartHorometrosObj = null;
+        let chartCombustibleObj = null;
 
-        function showToast(msg, icon, durationMs) {
-            icon = icon || "fa-circle-notch fa-spin";
+        // Utilidades Toast
+        function showToast(msg, icon = "fa-circle-notch fa-spin", durationMs = 0) {
             const toast = document.getElementById("toastMsg");
             document.getElementById("toastText").textContent = msg;
-            document.getElementById("toastIcon").className   = "fa-solid " + icon;
+            document.getElementById("toastIcon").className   = "fa-solid " + icon + " text-amber-400";
             toast.classList.remove("hide");
             toast.classList.add("show");
-            if (durationMs) setTimeout(hideToast, durationMs);
+            if (durationMs > 0) setTimeout(hideToast, durationMs);
         }
         function hideToast() {
             const toast = document.getElementById("toastMsg");
@@ -256,77 +821,150 @@
         }
 
         function sanitizar(obj) {
-            return JSON.parse(JSON.stringify(obj, function(_, v) { return v === undefined ? null : v; }));
+            return JSON.parse(JSON.stringify(obj, (_, v) => (v === undefined ? null : v)));
         }
 
         function getTodayStr() {
-            var d = new Date();
-            var y = d.getFullYear();
-            var m = String(d.getMonth() + 1).padStart(2, "0");
-            var day = String(d.getDate()).padStart(2, "0");
-            return y + "-" + m + "-" + day;
+            const d = new Date();
+            return d.toISOString().split("T")[0];
         }
 
-        function checkDoc(fStr) {
-            if (!fStr) return { c: "text-gray-400", txt: "N/R" };
-            var hoy = getTodayStr();
-            if (fStr <= hoy) return { c: "text-red-600 font-bold", txt: fStr + " (VENCIDO)" };
-            return { c: "text-emerald-600", txt: fStr };
+        // Compresión de imagen a Base64 via Canvas (para celulares)
+        function compressImage(file, maxWidth = 800, quality = 0.7) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement("canvas");
+                        let width = img.width;
+                        let height = img.height;
+                        if (width > maxWidth) {
+                            height = Math.round((height * maxWidth) / width);
+                            width = maxWidth;
+                        }
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext("2d");
+                        ctx.drawImage(img, 0, 0, width, height);
+                        resolve(canvas.toDataURL("image/jpeg", quality));
+                    };
+                    img.onerror = (err) => reject(err);
+                };
+                reader.onerror = (err) => reject(err);
+            });
         }
 
+        // Evaluación de Criticidad Documentaria & Mantenimientos
+        function calcularCriticidadDoc(fechaStr) {
+            if (!fechaStr) return { color: "text-slate-400", badge: "bg-slate-100 text-slate-500", txt: "N/R", dias: 999 };
+            const hoy = new Date();
+            hoy.setHours(0,0,0,0);
+            const fTarget = new Date(fechaStr + "T00:00:00");
+            const diffTime = fTarget.getTime() - hoy.getTime();
+            const diffDays = Math.ceil(diffTime / (1000 * 3600 * 24));
+
+            if (diffDays <= 0) {
+                return { color: "text-red-600 font-black", badge: "bg-red-100 text-red-700 border border-red-200", txt: fechaStr + " (VENCIDO)", dias: diffDays };
+            } else if (diffDays <= 30) {
+                return { color: "text-amber-600 font-bold", badge: "bg-amber-100 text-amber-800 border border-amber-200", txt: fechaStr + ` (${diffDays}d)`, dias: diffDays };
+            } else {
+                return { color: "text-emerald-600 font-semibold", badge: "bg-emerald-50 text-emerald-700", txt: fechaStr + ` (${diffDays}d)`, dias: diffDays };
+            }
+        }
+
+        // Guardado de BD (Firebase con Fallback LocalStorage)
         async function guardarBD() {
-            showToast("Guardando...");
+            showToast("Sincronizando cambios...");
             try {
-                await setDoc(doc(dbFirestore, COL, DOC_ID), sanitizar(db));
-                showToast("Guardado correctamente", "fa-check-circle", 2500);
+                localStorage.setItem(LOCAL_KEY, JSON.stringify(db));
+                if (dbFirestore) {
+                    await setDoc(doc(dbFirestore, COL, DOC_ID), sanitizar(db));
+                }
+                showToast("Guardado correctamente", "fa-check-circle", 2000);
             } catch(e) {
-                console.error("Error al guardar en Firebase:", e);
-                showToast("Error al guardar. Ver consola.", "fa-triangle-exclamation", 4000);
+                console.error("Error al guardar en Firebase, usando backup local:", e);
+                showToast("Guardado localmente", "fa-check-circle", 2000);
             }
             renderTodo();
         }
 
+        // Carga de BD
         async function cargarBD() {
-            showToast("Cargando datos...");
-            try {
-                var snap = await getDoc(doc(dbFirestore, COL, DOC_ID));
-                if (snap.exists()) db = snap.data();
-            } catch(e) {
-                console.error("Error al cargar de Firebase:", e);
-                showToast("Error al cargar.", "fa-triangle-exclamation", 4000);
+            showToast("Cargando base de datos...");
+            let cargado = false;
+            if (dbFirestore) {
+                try {
+                    const snap = await getDoc(doc(dbFirestore, COL, DOC_ID));
+                    if (snap.exists()) {
+                        db = snap.data();
+                        cargado = true;
+                    }
+                } catch(e) {
+                    console.warn("Fallo al conectar con Firestore, usando datos locales:", e);
+                }
             }
-            if (!Array.isArray(db.unidades))     db.unidades     = [];
-            if (!Array.isArray(db.operadores))    db.operadores    = [];
-            if (!Array.isArray(db.observaciones)) db.observaciones = [];
-            if (!db.configGral)                   db.configGral    = { logoUrl: "" };
+
+            if (!cargado) {
+                const localData = localStorage.getItem(LOCAL_KEY);
+                if (localData) {
+                    try { db = JSON.parse(localData); } catch(err){}
+                }
+            }
+
+            // Normalización de estructuras
+            if (!Array.isArray(db.unidades))               db.unidades = [];
+            if (!Array.isArray(db.operadores))             db.operadores = [];
+            if (!Array.isArray(db.observaciones))          db.observaciones = [];
+            if (!Array.isArray(db.horometrosHistorico))    db.horometrosHistorico = [];
+            if (!Array.isArray(db.combustibleHistorico))   db.combustibleHistorico = [];
+            if (!Array.isArray(db.mantenimientosHistorico))db.mantenimientosHistorico = [];
+            if (!db.configGral)                            db.configGral = { logoUrl: "", adminPass: "CART" };
+
             hideToast();
             renderTodo();
         }
 
+        // Validación de Acceso (Discreto)
         async function validarAcceso() {
-            var input = document.getElementById("accessCodeInput").value.trim().toUpperCase();
-            var errEl = document.getElementById("loginError");
+            const input = document.getElementById("accessCodeInput").value.trim().toUpperCase();
+            const errEl = document.getElementById("loginError");
             errEl.classList.add("hidden");
 
             if (!input) {
-                errEl.textContent = "Ingrese un código válido.";
+                errEl.textContent = "Ingrese un código o placa de equipo válido.";
                 errEl.classList.remove("hidden");
                 return;
             }
 
-            sesion = (input === "CART")
-                ? { rol: "admin",    codigoAcceso: "CART" }
-                : { rol: "operador", codigoAcceso: input };
+            const adminPass = (db.configGral && db.configGral.adminPass) ? db.configGral.adminPass.toUpperCase() : "CART";
+
+            if (input === adminPass) {
+                sesion = { rol: "admin", codigoAcceso: "ADMINISTRADOR" };
+            } else {
+                sesion = { rol: "operador", codigoAcceso: input };
+            }
 
             document.getElementById("loginScreen").classList.add("hidden");
             document.getElementById("appContent").classList.remove("hidden");
             document.getElementById("sessionBadge").textContent =
                 sesion.rol === "admin" ? "ADMINISTRADOR GENERAL" : "OPERADOR (" + sesion.codigoAcceso + ")";
 
-            var isAdmin = sesion.rol === "admin";
-            document.getElementById("adminFormsColumn").classList.toggle("hidden", !isAdmin);
-            document.getElementById("metricsPanel").classList.toggle("hidden",     !isAdmin);
-            document.getElementById("adminFilters").classList.toggle("hidden",      !isAdmin);
+            // Alternar visibilidad de paneles de edición según ROL
+            const isAdmin = sesion.rol === "admin";
+            document.getElementById("adminFormEquiposCol").classList.toggle("hidden", !isAdmin);
+            
+            // Reajustar grid de equipos si es admin o no
+            const colDisplay = document.getElementById("displayEquiposCol");
+            if (isAdmin) {
+                colDisplay.classList.remove("lg:col-span-3");
+                colDisplay.classList.add("lg:col-span-2");
+            } else {
+                colDisplay.classList.remove("lg:col-span-2");
+                colDisplay.classList.add("lg:col-span-3");
+            }
 
             await cargarBD();
         }
@@ -338,15 +976,17 @@
             sesion = { rol: "", codigoAcceso: "" };
         }
 
+        // Cambiar Logo Corporativo
         function subirLogo() {
             if (sesion.rol !== "admin") return;
-            var url = prompt("Pegue la URL directa de la imagen para el Logo Corporativo:");
-            if (url !== null && url.trim() !== "") {
+            const url = prompt("Pegue la URL directa del Logo Corporativo o deje en blanco para restablecer:");
+            if (url !== null) {
                 db.configGral.logoUrl = url.trim();
                 guardarBD();
             }
         }
 
+        // Operadores
         function agregarOperador(e) {
             e.preventDefault();
             db.operadores.push({
@@ -360,132 +1000,343 @@
         }
 
         function toggleEstadoOp(id) {
-            var op = db.operadores.find(function(o) { return o.id === id; });
+            if (sesion.rol !== "admin") return;
+            const op = db.operadores.find(o => o.id === id);
             if (op) {
                 op.estado = op.estado === "Operativo" ? "Baja" : "Operativo";
                 guardarBD();
             }
         }
 
-        function agregarUnidad(e) {
-            e.preventDefault();
-            var ids = [];
-            document.querySelectorAll(".check-op-asignado").forEach(function(cb) {
-                if (cb.checked) ids.push(cb.value);
-            });
-            db.unidades.push({
-                id:                 "un_" + Date.now(),
-                codigo:             document.getElementById("unidadCodigo").value.trim().toUpperCase(),
-                modelo:             document.getElementById("unidadModelo").value.trim(),
-                linea:              document.getElementById("unidadLinea").value,
-                tipoMedicion:       document.getElementById("unidadMedicion").value,
-                valorActual:        parseFloat(document.getElementById("unidadValorActual").value) || 0,
-                valorProximo:       parseFloat(document.getElementById("unidadValorProximo").value) || 0,
-                operadoresIds:      ids,
-                soat:               document.getElementById("unidadSoat").value   || "",
-                citv:               document.getElementById("unidadCitv").value   || "",
-                seguro:             document.getElementById("unidadSeguro").value  || "",
-                cert:               document.getElementById("unidadCert").value   || "",
-                customNombre:       document.getElementById("unidadCustomNombre").value.trim() || "",
-                customFecha:        document.getElementById("unidadCustomFecha").value || "",
-                estado:             "Operativo",
-                horasTrabajadasHoy: 0,
-                proyeccionDias:     null,
-                foto:               ""
-            });
-            document.getElementById("formUnidad").reset();
-            guardarBD();
-        }
-
-        function registrarJornadaDiaria(id) {
-            var u = db.unidades.find(function(x) { return x.id === id; });
-            if (!u) return;
-            var labelM = u.tipoMedicion === "Horometro" ? "Hrs" : "Km";
-
-            var ini = prompt("Ingrese Lectura INICIAL del día (" + labelM + "):", u.valorActual);
-            if (ini === null) return;
-            var fin = prompt("Ingrese Lectura FINAL del día (" + labelM + "):");
-            if (fin === null) return;
-
-            var valIni = parseFloat(ini);
-            var valFin = parseFloat(fin);
-
-            if (isNaN(valIni) || isNaN(valFin)) {
-                alert("Valores no numéricos. Verifique las lecturas.");
-                return;
-            }
-            if (valFin < valIni) {
-                alert("La lectura FINAL no puede ser menor a la INICIAL.");
-                return;
-            }
-            if (valFin < u.valorActual) {
-                alert("La lectura final (" + valFin + ") es menor a la lectura acumulada actual (" + u.valorActual + "). Verifique.");
-                return;
-            }
-
-            var trabajadas = valFin - valIni;
-            u.valorActual        = valFin;
-            u.horasTrabajadasHoy = trabajadas;
-            var restante         = u.valorProximo - valFin;
-            u.proyeccionDias     = (restante > 0 && trabajadas > 0) ? Math.ceil(restante / trabajadas) : null;
-
-            guardarBD();
-        }
-
-        function toggleEstadoUnidad(id) {
-            var u = db.unidades.find(function(x) { return x.id === id; });
-            if (u) { u.estado = u.estado === "Operativo" ? "Baja" : "Operativo"; guardarBD(); }
-        }
-
-        function subirFoto(id, tipo) {
-            var url = prompt("Pegue el enlace directo de la imagen (URL):");
-            if (url !== null && url.trim() !== "") {
-                if (tipo === "unidad") {
-                    var u = db.unidades.find(function(x) { return x.id === id; });
-                    if (u) u.foto = url.trim();
-                }
-                if (tipo === "observacion") {
-                    var o = db.observaciones.find(function(x) { return x.id === id; });
-                    if (o) o.foto = url.trim();
-                }
+        function eliminarOperador(id) {
+            if (sesion.rol !== "admin") return;
+            if (confirm("¿Está seguro de eliminar este operador de la plantilla?")) {
+                db.operadores = db.operadores.filter(o => o.id !== id);
                 guardarBD();
             }
         }
 
-        function agregarObservacion(e) {
+        // Unidades / Equipos (Agregar / Editar / Eliminar)
+        async function guardarUnidad(e) {
             e.preventDefault();
-            var unidadId = document.getElementById("obsUnidad").value;
+            const editId = document.getElementById("editUnidadId").value;
+            const idsOps = [];
+            document.querySelectorAll(".check-op-asignado").forEach(cb => {
+                if (cb.checked) idsOps.push(cb.value);
+            });
+
+            const fotoBase64 = document.getElementById("unidadFotoBase64").value;
+
+            if (editId) {
+                // Editar existente
+                const u = db.unidades.find(x => x.id === editId);
+                if (u) {
+                    u.codigo        = document.getElementById("unidadCodigo").value.trim().toUpperCase();
+                    u.modelo        = document.getElementById("unidadModelo").value.trim();
+                    u.linea         = document.getElementById("unidadLinea").value;
+                    u.tipoMedicion  = document.getElementById("unidadMedicion").value;
+                    u.valorActual   = parseFloat(document.getElementById("unidadValorActual").value) || 0;
+                    u.valorProximo  = parseFloat(document.getElementById("unidadValorProximo").value) || 0;
+                    u.operadoresIds = idsOps;
+                    u.soat          = document.getElementById("unidadSoat").value || "";
+                    u.citv          = document.getElementById("unidadCitv").value || "";
+                    u.seguro        = document.getElementById("unidadSeguro").value || "";
+                    u.cert          = document.getElementById("unidadCert").value || "";
+                    u.customNombre  = document.getElementById("unidadCustomNombre").value.trim() || "";
+                    u.customFecha   = document.getElementById("unidadCustomFecha").value || "";
+                    if (fotoBase64) u.foto = fotoBase64;
+                }
+            } else {
+                // Nuevo
+                db.unidades.push({
+                    id:                 "un_" + Date.now(),
+                    codigo:             document.getElementById("unidadCodigo").value.trim().toUpperCase(),
+                    modelo:             document.getElementById("unidadModelo").value.trim(),
+                    linea:              document.getElementById("unidadLinea").value,
+                    tipoMedicion:       document.getElementById("unidadMedicion").value,
+                    valorActual:        parseFloat(document.getElementById("unidadValorActual").value) || 0,
+                    valorProximo:       parseFloat(document.getElementById("unidadValorProximo").value) || 0,
+                    operadoresIds:      idsOps,
+                    soat:               document.getElementById("unidadSoat").value   || "",
+                    citv:               document.getElementById("unidadCitv").value   || "",
+                    seguro:             document.getElementById("unidadSeguro").value  || "",
+                    cert:               document.getElementById("unidadCert").value   || "",
+                    customNombre:       document.getElementById("unidadCustomNombre").value.trim() || "",
+                    customFecha:        document.getElementById("unidadCustomFecha").value || "",
+                    estado:             "Operativo",
+                    horasTrabajadasHoy: 0,
+                    proyeccionDias:     null,
+                    foto:               fotoBase64 || ""
+                });
+            }
+
+            resetFormUnidad();
+            guardarBD();
+        }
+
+        function editarUnidad(id) {
+            if (sesion.rol !== "admin") return;
+            const u = db.unidades.find(x => x.id === id);
+            if (!u) return;
+
+            document.getElementById("editUnidadId").value = u.id;
+            document.getElementById("lblFormUnidadAccion").textContent = "Editar";
+            document.getElementById("btnCancelarEditUnidad").classList.remove("hidden");
+            document.getElementById("btnSubmitUnidad").textContent = "Actualizar Unidad";
+
+            document.getElementById("unidadCodigo").value = u.codigo;
+            document.getElementById("unidadModelo").value = u.modelo;
+            document.getElementById("unidadLinea").value  = u.linea;
+            document.getElementById("unidadMedicion").value = u.tipoMedicion;
+            document.getElementById("unidadValorActual").value = u.valorActual;
+            document.getElementById("unidadValorProximo").value = u.valorProximo;
+            document.getElementById("unidadSoat").value   = u.soat || "";
+            document.getElementById("unidadCitv").value   = u.citv || "";
+            document.getElementById("unidadSeguro").value = u.seguro || "";
+            document.getElementById("unidadCert").value   = u.cert || "";
+            document.getElementById("unidadCustomNombre").value = u.customNombre || "";
+            document.getElementById("unidadCustomFecha").value  = u.customFecha || "";
+
+            // Checkboxes operadores
+            document.querySelectorAll(".check-op-asignado").forEach(cb => {
+                cb.checked = u.operadoresIds && u.operadoresIds.includes(cb.value);
+            });
+
+            if (u.foto) {
+                document.getElementById("imgPreviewUnidad").src = u.foto;
+                document.getElementById("previewUnidadFoto").classList.remove("hidden");
+                document.getElementById("unidadFotoBase64").value = u.foto;
+            } else {
+                document.getElementById("previewUnidadFoto").classList.add("hidden");
+                document.getElementById("unidadFotoBase64").value = "";
+            }
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function resetFormUnidad() {
+            document.getElementById("formUnidad").reset();
+            document.getElementById("editUnidadId").value = "";
+            document.getElementById("lblFormUnidadAccion").textContent = "Registrar";
+            document.getElementById("btnCancelarEditUnidad").classList.add("hidden");
+            document.getElementById("btnSubmitUnidad").textContent = "Registrar Unidad";
+            document.getElementById("previewUnidadFoto").classList.add("hidden");
+            document.getElementById("unidadFotoBase64").value = "";
+        }
+
+        function eliminarUnidad(id) {
+            if (sesion.rol !== "admin") return;
+            if (confirm("¿Está seguro de eliminar este equipo permanentemente? Se mantendrán los históricos asociados.")) {
+                db.unidades = db.unidades.filter(u => u.id !== id);
+                guardarBD();
+            }
+        }
+
+        function toggleEstadoUnidad(id) {
+            if (sesion.rol !== "admin") return;
+            const u = db.unidades.find(x => x.id === id);
+            if (u) {
+                u.estado = u.estado === "Operativo" ? "Baja" : "Operativo";
+                guardarBD();
+            }
+        }
+
+        // Abrir Modal de Jornada
+        function abrirModalJornada(id) {
+            const u = db.unidades.find(x => x.id === id);
+            if (!u) return;
+
+            document.getElementById("jornadaUnidadId").value = u.id;
+            document.getElementById("modalJornadaEquipo").textContent = `${u.codigo} - ${u.modelo}`;
+            document.getElementById("jornadaFecha").value = getTodayStr();
+            document.getElementById("jornadaIni").value = u.valorActual;
+            document.getElementById("jornadaFin").value = u.valorActual;
+            document.getElementById("lblJornadaUnidadMedida1").textContent = u.tipoMedicion === "Horometro" ? "Hrs" : "Km";
+            document.getElementById("lblJornadaUnidadMedida2").textContent = u.tipoMedicion === "Horometro" ? "Hrs" : "Km";
+
+            // Llenar select de operadores disponibles
+            const selectOp = document.getElementById("jornadaOperador");
+            const opsAsignados = db.operadores.filter(o => u.operadoresIds && u.operadoresIds.includes(o.id));
+            const opsLlenar = opsAsignados.length > 0 ? opsAsignados : db.operadores;
+
+            selectOp.innerHTML = opsLlenar.map(o => `<option value="${o.id}">${o.nombre}</option>`).join("");
+
+            document.getElementById("modalJornada").classList.remove("hidden");
+        }
+
+        function cerrarModalJornada() {
+            document.getElementById("modalJornada").classList.add("hidden");
+            document.getElementById("formJornadaModal").reset();
+        }
+
+        // Registrar Jornada Diaria e Histórico
+        function guardarJornadaModal(e) {
+            e.preventDefault();
+            const id = document.getElementById("jornadaUnidadId").value;
+            const u = db.unidades.find(x => x.id === id);
+            if (!u) return;
+
+            const fecha  = document.getElementById("jornadaFecha").value;
+            const valIni = parseFloat(document.getElementById("jornadaIni").value);
+            const valFin = parseFloat(document.getElementById("jornadaFin").value);
+            const opId   = document.getElementById("jornadaOperador").value;
+            const notas  = document.getElementById("jornadaNotas").value.trim();
+
+            if (isNaN(valIni) || isNaN(valFin)) {
+                alert("Ingrese lecturas válidas.");
+                return;
+            }
+            if (valFin < valIni) {
+                alert("La lectura FINAL no puede ser menor a la lectura INICIAL.");
+                return;
+            }
+
+            const op = db.operadores.find(o => o.id === opId);
+            const opNombre = op ? op.nombre : "No especificado";
+
+            const trabajado = valFin - valIni;
+            u.valorActual        = valFin;
+            u.horasTrabajadasHoy = trabajado;
+
+            const restante = u.valorProximo - valFin;
+            u.proyeccionDias = (restante > 0 && trabajado > 0) ? Math.ceil(restante / trabajado) : null;
+
+            // Agregar a la tabla de Histórico
+            db.horometrosHistorico.push({
+                id:          "h_" + Date.now(),
+                fecha:       fecha,
+                unidadId:    u.id,
+                codigo:      u.codigo,
+                tipoMedida:  u.tipoMedicion,
+                valorIni:    valIni,
+                valorFin:    valFin,
+                trabajado:   trabajado,
+                opNombre:    opNombre,
+                notas:       notas
+            });
+
+            cerrarModalJornada();
+            guardarBD();
+        }
+
+        function eliminarHistoricoHorometro(id) {
+            if (sesion.rol !== "admin") return;
+            if (confirm("¿Desea eliminar esta entrada del historial de horómetros?")) {
+                db.horometrosHistorico = db.horometrosHistorico.filter(h => h.id !== id);
+                guardarBD();
+            }
+        }
+
+        // Combustible & Mantenimientos
+        function agregarCombustible(e) {
+            e.preventDefault();
+            const uId = document.getElementById("combUnidad").value;
+            const u = db.unidades.find(x => x.id === uId);
+            if (!u) { alert("Seleccione un equipo"); return; }
+
+            db.combustibleHistorico.push({
+                id:        "c_" + Date.now(),
+                unidadId:  uId,
+                codigo:    u.codigo,
+                fecha:     document.getElementById("combFecha").value,
+                galones:   parseFloat(document.getElementById("combGalones").value) || 0,
+                costo:     parseFloat(document.getElementById("combCosto").value) || 0,
+                horometro: parseFloat(document.getElementById("combHorometro").value) || u.valorActual,
+                grifo:     document.getElementById("combGrifo").value.trim()
+            });
+
+            document.getElementById("formCombustible").reset();
+            guardarBD();
+        }
+
+        function eliminarCombustible(id) {
+            if (sesion.rol !== "admin") return;
+            if (confirm("¿Eliminar registro de combustible?")) {
+                db.combustibleHistorico = db.combustibleHistorico.filter(c => c.id !== id);
+                guardarBD();
+            }
+        }
+
+        function agregarMantenimiento(e) {
+            e.preventDefault();
+            const uId = document.getElementById("mtoUnidad").value;
+            const u = db.unidades.find(x => x.id === uId);
+            if (!u) { alert("Seleccione un equipo"); return; }
+
+            const proxMto = parseFloat(document.getElementById("mtoProximo").value);
+            if (!isNaN(proxMto) && proxMto > 0) {
+                u.valorProximo = proxMto;
+            }
+
+            db.mantenimientosHistorico.push({
+                id:        "m_" + Date.now(),
+                unidadId:  uId,
+                codigo:    u.codigo,
+                fecha:     document.getElementById("mtoFecha").value,
+                tipo:      document.getElementById("mtoTipo").value,
+                horometro: parseFloat(document.getElementById("mtoHorometro").value) || u.valorActual,
+                proximo:   proxMto || u.valorProximo,
+                detalle:   document.getElementById("mtoDetalle").value.trim()
+            });
+
+            document.getElementById("formMantenimiento").reset();
+            guardarBD();
+        }
+
+        function eliminarMantenimiento(id) {
+            if (sesion.rol !== "admin") return;
+            if (confirm("¿Eliminar registro de mantenimiento?")) {
+                db.mantenimientosHistorico = db.mantenimientosHistorico.filter(m => m.id !== id);
+                guardarBD();
+            }
+        }
+
+        // Observaciones con Foto de Celular
+        async function agregarObservacion(e) {
+            e.preventDefault();
+            const unidadId = document.getElementById("obsUnidad").value;
             if (!unidadId) { alert("Seleccione un equipo."); return; }
+
+            const fotoBase64 = document.getElementById("obsFotoBase64").value;
+
             db.observaciones.push({
                 id:       "obs_" + Date.now(),
                 unidadId: unidadId,
                 detalle:  document.getElementById("obsDetalle").value.trim(),
                 fecha:    new Date().toLocaleDateString("es-PE"),
                 estado:   "Inicio",
-                foto:     ""
+                foto:     fotoBase64 || ""
             });
+
             document.getElementById("formObservacion").reset();
+            document.getElementById("previewObsFoto").classList.add("hidden");
+            document.getElementById("obsFotoBase64").value = "";
             guardarBD();
         }
 
         function cambiarEstadoObs(id, est) {
-            var o = db.observaciones.find(function(x) { return x.id === id; });
+            if (sesion.rol !== "admin") return;
+            const o = db.observaciones.find(x => x.id === id);
             if (o) { o.estado = est; guardarBD(); }
         }
 
-        function setFiltro(f) {
-            filtroActual = f;
-            ["Todos","Amarilla","Blanca"].forEach(function(name) {
-                var btn = document.getElementById("btnFiltro" + name);
-                if (!btn) return;
-                btn.className = (name === f)
-                    ? "px-3 py-1 text-xs font-bold rounded-lg bg-industrial-500 text-white"
-                    : "px-3 py-1 text-xs font-bold rounded-lg bg-gray-200 text-gray-700";
-            });
-            renderTodo();
+        function eliminarObservacion(id) {
+            if (sesion.rol !== "admin") return;
+            if (confirm("¿Eliminar este reporte de observación?")) {
+                db.observaciones = db.observaciones.filter(o => o.id !== id);
+                guardarBD();
+            }
         }
 
+        function zoomFoto(src) {
+            if (!src) return;
+            document.getElementById("imgZoomModal").src = src;
+            document.getElementById("modalFotoZoom").classList.remove("hidden");
+        }
+
+        // RENDERIZADO GLOBAL & DASHBOARD
         function renderTodo() {
+            // Logo Corporativo
             if (db.configGral && db.configGral.logoUrl) {
                 document.getElementById("appLogoIcon").classList.add("hidden");
                 document.getElementById("appLogoImg").src = db.configGral.logoUrl;
@@ -495,190 +1346,477 @@
                 document.getElementById("appLogoImg").classList.add("hidden");
             }
 
-            document.getElementById("mEquiposOp").textContent   = db.unidades.filter(function(x) { return x.estado === "Operativo"; }).length;
-            document.getElementById("mEquiposBaja").textContent  = db.unidades.filter(function(x) { return x.estado === "Baja"; }).length;
-            document.getElementById("mOpsOp").textContent        = db.operadores.filter(function(x) { return x.estado === "Operativo"; }).length;
-            document.getElementById("mOpsBaja").textContent      = db.operadores.filter(function(x) { return x.estado === "Baja"; }).length;
+            const isAdmin = sesion.rol === "admin";
 
-            document.getElementById("listaOperadores").innerHTML = db.operadores.map(function(o) {
-                return [
-                    '<div class="flex justify-between items-center text-[11px] bg-gray-50 p-1 border rounded">',
-                    '  <span class="' + (o.estado === "Baja" ? "line-through text-red-500" : "") + '">' + o.nombre + '</span>',
-                    '  <button type="button" data-toggle-op="' + o.id + '" class="text-[9px] font-bold uppercase ' +
-                        (o.estado === "Operativo" ? "text-red-500" : "text-emerald-600") + '">',
-                        (o.estado === "Operativo" ? "Baja" : "Alta"),
-                    '  </button>',
-                    '</div>'
-                ].join("");
-            }).join("");
+            // 1. RENDERIZAR OPERADORES EN PLANTILLA
+            document.getElementById("listaOperadores").innerHTML = db.operadores.map(o => `
+                <div class="flex justify-between items-center text-xs bg-slate-50 p-2 rounded-xl border border-slate-200">
+                    <div>
+                        <span class="font-bold ${o.estado === "Baja" ? "line-through text-red-500" : "text-slate-800"}">${o.nombre}</span>
+                        <span class="text-[9px] text-slate-400 block">${o.licencia}</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <button type="button" data-toggle-op="${o.id}" class="text-[9px] font-black uppercase px-2 py-0.5 rounded-lg ${o.estado === "Operativo" ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"}">
+                            ${o.estado === "Operativo" ? "Dar Baja" : "Alta"}
+                        </button>
+                        <button type="button" data-del-op="${o.id}" class="text-red-500 hover:text-red-700 px-1 text-xs" title="Eliminar"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                </div>
+            `).join("");
 
-            var contenedorChecks = document.getElementById("contenedorCheckboxesOperadores");
-            var opsDisponibles   = db.operadores.filter(function(x) { return x.estado === "Operativo"; });
+            // Checkboxes operadores en form equipo
+            const contenedorChecks = document.getElementById("contenedorCheckboxesOperadores");
+            const opsDisponibles = db.operadores.filter(x => x.estado === "Operativo");
             if (opsDisponibles.length === 0) {
-                contenedorChecks.innerHTML = '<p class="text-[10px] text-gray-400 text-center py-1">No hay operadores activos</p>';
+                contenedorChecks.innerHTML = '<p class="text-[10px] text-slate-400 text-center py-1">No hay operadores activos</p>';
             } else {
-                contenedorChecks.innerHTML = opsDisponibles.map(function(o) {
-                    return '<label class="flex items-center gap-2 text-xs bg-white p-1 rounded border border-gray-100 cursor-pointer">' +
-                        '<input type="checkbox" value="' + o.id + '" class="check-op-asignado rounded focus:ring-0">' +
-                        '<span class="truncate font-medium">' + o.nombre + '</span></label>';
-                }).join("");
+                contenedorChecks.innerHTML = opsDisponibles.map(o => `
+                    <label class="flex items-center gap-2 text-xs bg-white p-1.5 rounded-lg border border-slate-100 cursor-pointer hover:bg-amber-50/50">
+                        <input type="checkbox" value="${o.id}" class="check-op-asignado rounded text-amber-500 focus:ring-0">
+                        <span class="truncate font-medium text-slate-800">${o.nombre}</span>
+                    </label>
+                `).join("");
             }
 
-            var unidadesParaReporte = sesion.rol === "operador"
-                ? db.unidades.filter(function(x) { return x.codigo === sesion.codigoAcceso; })
+            // Llenar Selects de Equipos en formularios
+            const unidadesParaReporte = sesion.rol === "operador"
+                ? db.unidades.filter(x => x.codigo === sesion.codigoAcceso)
                 : db.unidades;
-            document.getElementById("obsUnidad").innerHTML =
-                '<option value="">-- Seleccionar Equipo --</option>' +
-                unidadesParaReporte.map(function(u) { return '<option value="' + u.id + '">' + u.codigo + '</option>'; }).join("");
 
-            var visuales = db.unidades.slice();
+            const optionsEquipos = '<option value="">-- Seleccionar Equipo --</option>' +
+                unidadesParaReporte.map(u => `<option value="${u.id}">${u.codigo} - ${u.modelo}</option>`).join("");
+
+            document.getElementById("obsUnidad").innerHTML  = optionsEquipos;
+            document.getElementById("combUnidad").innerHTML = optionsEquipos;
+            document.getElementById("mtoUnidad").innerHTML  = optionsEquipos;
+
+            const selectHorometroFiltro = document.getElementById("filtroEquipoHorometro");
+            const valFiltroPrev = selectHorometroFiltro.value;
+            selectHorometroFiltro.innerHTML = '<option value="">Todos los equipos</option>' +
+                db.unidades.map(u => `<option value="${u.id}">${u.codigo} - ${u.modelo}</option>`).join("");
+            selectHorometroFiltro.value = valFiltroPrev;
+
+            // 2. RENDERIZAR GRILLA DE TARJETAS DE EQUIPOS
+            let visuales = db.unidades.slice();
             if (sesion.rol === "operador") {
-                visuales = visuales.filter(function(x) { return x.codigo === sesion.codigoAcceso; });
+                visuales = visuales.filter(x => x.codigo === sesion.codigoAcceso);
             } else {
-                if (filtroActual !== "Todos") visuales = visuales.filter(function(x) { return x.linea === filtroActual; });
-                var bus = (document.getElementById("buscadorInput").value || "").toLowerCase();
-                if (bus) visuales = visuales.filter(function(x) {
-                    return x.codigo.toLowerCase().includes(bus) || x.modelo.toLowerCase().includes(bus);
-                });
+                if (filtroActual !== "Todos") visuales = visuales.filter(x => x.linea === filtroActual);
+                const bus = (document.getElementById("buscadorInput").value || "").toLowerCase();
+                if (bus) visuales = visuales.filter(x => x.codigo.toLowerCase().includes(bus) || x.modelo.toLowerCase().includes(bus));
             }
 
-            document.getElementById("gridUnidades").innerHTML = visuales.map(function(u) {
-                var nombresOps = "No asignado";
+            document.getElementById("gridUnidades").innerHTML = visuales.map(u => {
+                let nombresOps = "No asignado";
                 if (u.operadoresIds && u.operadoresIds.length > 0) {
-                    var filtrados = db.operadores.filter(function(o) { return u.operadoresIds.includes(o.id); });
-                    if (filtrados.length > 0) nombresOps = filtrados.map(function(f) { return f.nombre; }).join(", ");
+                    const filtrados = db.operadores.filter(o => u.operadoresIds.includes(o.id));
+                    if (filtrados.length > 0) nombresOps = filtrados.map(f => f.nombre).join(", ");
                 }
-                var labelM = u.tipoMedicion === "Horometro" ? "Hrs" : "Km";
-                var rest   = u.valorProximo - u.valorActual;
-                var colorBorder = "border-emerald-500";
+                const labelM = u.tipoMedicion === "Horometro" ? "Hrs" : "Km";
+                const rest   = u.valorProximo - u.valorActual;
+                
+                let colorBorder = "border-emerald-500";
                 if (rest <= 0 || u.estado === "Baja") colorBorder = "border-red-500";
                 else if (rest <= (u.tipoMedicion === "Horometro" ? 50 : 500)) colorBorder = "border-amber-500";
 
-                var s   = checkDoc(u.soat);
-                var c   = checkDoc(u.citv);
-                var seg = checkDoc(u.seguro);
-                var cer = checkDoc(u.cert);
-                var cust = u.customFecha ? checkDoc(u.customFecha) : null;
-                var fotoSrc = u.foto || "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=200";
+                const s   = calcularCriticidadDoc(u.soat);
+                const c   = calcularCriticidadDoc(u.citv);
+                const seg = calcularCriticidadDoc(u.seguro);
+                const cer = calcularCriticidadDoc(u.cert);
+                const cust = u.customFecha ? calcularCriticidadDoc(u.customFecha) : null;
+                const fotoSrc = u.foto || "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=300";
 
-                return [
-                    '<div class="bg-white rounded-xl overflow-hidden border-2 ' + colorBorder + ' p-4 space-y-3 shadow-sm">',
-                    '  <div class="flex gap-3">',
-                    '    <div class="w-16 h-16 rounded-lg bg-gray-100 border relative group overflow-hidden flex-shrink-0 cursor-pointer" data-foto-unidad="' + u.id + '">',
-                    '      <img src="' + fotoSrc + '" class="w-full h-full object-cover" alt="Foto">',
-                    '      <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 text-white text-[8px] flex items-center justify-center font-bold text-center p-1">CAMBIAR FOTO</div>',
-                    '    </div>',
-                    '    <div class="flex-1 min-w-0">',
-                    '      <div class="flex justify-between">',
-                    '        <span class="text-xs font-black font-mono bg-gray-900 text-white px-1.5 rounded">' + u.codigo + '</span>',
-                    '        <span class="text-[9px] font-bold text-gray-400 uppercase">' + u.estado + '</span>',
-                    '      </div>',
-                    '      <h4 class="text-xs font-black truncate mt-1">' + u.modelo + '</h4>',
-                    '      <p class="text-[10px] text-gray-500 font-bold truncate">Ops: ' + nombresOps + '</p>',
-                    '    </div>',
-                    '  </div>',
-                    '  <div class="grid grid-cols-2 gap-1.5 text-[11px] border-y py-1.5 font-semibold">',
-                    '    <div><p class="text-[9px] text-gray-400 uppercase">Lectura Actual</p><span>' + u.valorActual + ' ' + labelM + '</span></div>',
-                    '    <div><p class="text-[9px] text-gray-400 uppercase">Resta Mto.</p><span class="' + (rest <= 0 ? "text-red-600 font-bold" : "") + '">' + (rest <= 0 ? "REQUERIDO" : rest.toFixed(1) + " " + labelM) + '</span></div>',
-                    '    <div><p class="text-[9px] text-gray-400 uppercase">Trabajado Hoy</p><span>' + (u.horasTrabajadasHoy || 0) + ' ' + labelM + '</span></div>',
-                    '    <div><p class="text-[9px] text-gray-400 uppercase">Días para Mto.</p><span>' + (u.proyeccionDias ? u.proyeccionDias + " Días" : "Calculando...") + '</span></div>',
-                    '  </div>',
-                    '  <div class="text-[9px] grid grid-cols-2 gap-x-2 gap-y-0.5 font-bold bg-gray-50 p-1.5 rounded">',
-                    '    <div>SOAT: <span class="' + s.c + '">' + s.txt + '</span></div>',
-                    '    <div>CITV: <span class="' + c.c + '">' + c.txt + '</span></div>',
-                    '    <div>SEGURO: <span class="' + seg.c + '">' + seg.txt + '</span></div>',
-                    '    <div>CERT. OP: <span class="' + cer.c + '">' + cer.txt + '</span></div>',
-                    cust ? '<div class="col-span-2 text-indigo-600 uppercase font-black">' + (u.customNombre || "ALERTA") + ': <span class="' + cust.c + '">' + cust.txt + '</span></div>' : '',
-                    '  </div>',
-                    '  <div class="flex gap-2 pt-1">',
-                    '    <button type="button" data-jornada="' + u.id + '" class="w-full bg-industrial-500 text-gray-950 font-black py-1.5 text-[10px] rounded uppercase tracking-wider">Registrar Jornada</button>',
-                    sesion.rol === "admin" ? '<button type="button" data-toggle-unidad="' + u.id + '" class="text-[9px] px-2 border rounded font-bold uppercase text-red-600 hover:bg-red-50">' + (u.estado === "Operativo" ? "Baja" : "Alta") + '</button>' : '',
-                    '  </div>',
-                    '</div>'
-                ].join("");
+                return `
+                    <div class="bg-white rounded-2xl overflow-hidden border-2 ${colorBorder} p-4 space-y-3 shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
+                        <div class="space-y-3">
+                            <div class="flex gap-3 items-center">
+                                <div class="w-16 h-16 rounded-xl bg-slate-100 border relative group overflow-hidden flex-shrink-0 cursor-pointer" onclick="zoomFoto('${fotoSrc}')">
+                                    <img src="${fotoSrc}" class="w-full h-full object-cover" alt="Foto">
+                                    <div class="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 text-white text-[8px] flex items-center justify-center font-bold text-center p-1 transition-all">AMPLIAR FOTO</div>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-xs font-black font-mono bg-slate-950 text-amber-400 px-2 py-0.5 rounded-md border border-slate-800">${u.codigo}</span>
+                                        <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${u.estado === "Operativo" ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-800"}">${u.estado}</span>
+                                    </div>
+                                    <h4 class="text-xs font-black truncate mt-1 text-slate-800">${u.modelo}</h4>
+                                    <p class="text-[10px] text-slate-500 font-bold truncate"><i class="fa-solid fa-user text-slate-400 mr-1"></i>${nombresOps}</p>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-2 text-[11px] border-y py-2 font-semibold bg-slate-50/50 rounded-xl px-2">
+                                <div>
+                                    <p class="text-[9px] text-slate-400 uppercase font-black">Lectura Acumulada</p>
+                                    <span class="text-slate-900 font-black text-xs">${u.valorActual} ${labelM}</span>
+                                </div>
+                                <div>
+                                    <p class="text-[9px] text-slate-400 uppercase font-black">Resta para Mto.</p>
+                                    <span class="${rest <= 0 ? "text-red-600 font-black" : "text-slate-700"}">${rest <= 0 ? "REQUERIDO" : rest.toFixed(1) + " " + labelM}</span>
+                                </div>
+                                <div>
+                                    <p class="text-[9px] text-slate-400 uppercase font-black">Trabajado Hoy</p>
+                                    <span class="text-slate-800">${u.horasTrabajadasHoy || 0} ${labelM}</span>
+                                </div>
+                                <div>
+                                    <p class="text-[9px] text-slate-400 uppercase font-black">Días Proyectados</p>
+                                    <span class="text-slate-800">${u.proyeccionDias ? u.proyeccionDias + " Días" : "Calculando..."}</span>
+                                </div>
+                            </div>
+
+                            <div class="text-[9px] space-y-1 font-bold bg-slate-50 p-2 rounded-xl border border-slate-100">
+                                <div class="flex justify-between"><span>SOAT:</span> <span class="${s.color}">${s.txt}</span></div>
+                                <div class="flex justify-between"><span>CITV:</span> <span class="${c.color}">${c.txt}</span></div>
+                                <div class="flex justify-between"><span>SEGURO:</span> <span class="${seg.color}">${seg.txt}</span></div>
+                                <div class="flex justify-between"><span>CERT. OPERAT.:</span> <span class="${cer.color}">${cer.txt}</span></div>
+                                ${cust ? `<div class="flex justify-between border-t pt-0.5 text-indigo-700"><span>${u.customNombre || "ALERTA"}:</span> <span class="${cust.color}">${cust.txt}</span></div>` : ''}
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col gap-2 pt-2 border-t mt-2">
+                            <button type="button" data-jornada="${u.id}" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-black py-2 text-xs rounded-xl uppercase tracking-wider shadow flex items-center justify-center gap-1.5 transition-all">
+                                <i class="fa-solid fa-plus-circle"></i> Registrar Jornada Diaria
+                            </button>
+
+                            ${isAdmin ? `
+                                <div class="flex justify-between gap-1 text-[10px]">
+                                    <button type="button" data-edit-unidad="${u.id}" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-1.5 rounded-lg">
+                                        <i class="fa-solid fa-pen-to-square mr-1"></i>Editar
+                                    </button>
+                                    <button type="button" data-toggle-unidad="${u.id}" class="flex-1 border border-slate-300 font-bold py-1.5 rounded-lg ${u.estado === "Operativo" ? "text-red-600 hover:bg-red-50" : "text-emerald-600 hover:bg-emerald-50"}">
+                                        ${u.estado === "Operativo" ? "Baja" : "Alta"}
+                                    </button>
+                                    <button type="button" data-del-unidad="${u.id}" class="bg-red-50 hover:bg-red-100 text-red-600 font-bold px-2.5 rounded-lg" title="Eliminar Equipo">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </button>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
             }).join("");
 
-            var obsVisibles = sesion.rol === "operador"
-                ? db.observaciones.filter(function(o) {
-                    var u = db.unidades.find(function(x) { return x.id === o.unidadId; });
+            // 3. RENDERIZAR DASHBOARD DE ALTO IMPACTO (MÉTRICAS Y MATRIZ)
+            const countOp = db.unidades.filter(x => x.estado === "Operativo").length;
+            const countBaja = db.unidades.filter(x => x.estado === "Baja").length;
+            const totalHorasFaena = db.unidades.reduce((acc, u) => acc + (u.valorActual || 0), 0);
+            
+            const totalGalones = db.combustibleHistorico.reduce((acc, c) => acc + (c.galones || 0), 0);
+            const totalCostoComb = db.combustibleHistorico.reduce((acc, c) => acc + (c.costo || 0), 0);
+
+            document.getElementById("dashEquiposOp").textContent = countOp;
+            document.getElementById("dashEquiposBaja").textContent = countBaja;
+            document.getElementById("dashHorasTotales").textContent = totalHorasFaena.toLocaleString("es-PE", { maximumFractionDigits: 1 });
+            document.getElementById("dashCombustibleTotal").textContent = `${totalGalones.toFixed(1)} Gal`;
+            document.getElementById("dashCostoCombustible").textContent = `S/ ${totalCostoComb.toLocaleString("es-PE", { minimumFractionDigits: 2 })}`;
+
+            // Matriz de Criticidad
+            let countCrit = 0;
+            let countWarn = 0;
+
+            const htmlMatriz = db.unidades.map(u => {
+                const s = calcularCriticidadDoc(u.soat);
+                const c = calcularCriticidadDoc(u.citv);
+                const seg = calcularCriticidadDoc(u.seguro);
+                const cer = calcularCriticidadDoc(u.cert);
+                const cust = u.customFecha ? calcularCriticidadDoc(u.customFecha) : null;
+
+                const restMto = u.valorProximo - u.valorActual;
+                let badgeMto = '<span class="px-2 py-0.5 rounded font-bold bg-emerald-100 text-emerald-800">' + restMto.toFixed(1) + ' ' + (u.tipoMedicion === "Horometro"?"Hrs":"Km") + '</span>';
+                if (restMto <= 0) {
+                    badgeMto = '<span class="px-2 py-0.5 rounded font-black bg-red-100 text-red-700">REQUERIDO</span>';
+                    countCrit++;
+                } else if (restMto <= (u.tipoMedicion === "Horometro"? 50 : 500)) {
+                    badgeMto = '<span class="px-2 py-0.5 rounded font-bold bg-amber-100 text-amber-800">PRÓXIMO (' + restMto.toFixed(1) + ')</span>';
+                    countWarn++;
+                }
+
+                [s, c, seg, cer, cust].forEach(item => {
+                    if (item) {
+                        if (item.dias <= 0) countCrit++;
+                        else if (item.dias <= 30) countWarn++;
+                    }
+                });
+
+                return `
+                    <tr class="hover:bg-slate-50 transition-all">
+                        <td class="p-3 font-mono font-bold text-slate-900">${u.codigo} - ${u.modelo}</td>
+                        <td class="p-3">${u.linea}</td>
+                        <td class="p-3 font-bold">${u.valorActual} ${u.tipoMedicion === "Horometro"?"Hrs":"Km"}</td>
+                        <td class="p-3">${badgeMto}</td>
+                        <td class="p-3"><span class="px-2 py-0.5 rounded ${s.badge}">${s.txt}</span></td>
+                        <td class="p-3"><span class="px-2 py-0.5 rounded ${c.badge}">${c.txt}</span></td>
+                        <td class="p-3"><span class="px-2 py-0.5 rounded ${seg.badge}">${seg.txt}</span></td>
+                        <td class="p-3"><span class="px-2 py-0.5 rounded ${cer.badge}">${cer.txt}</span></td>
+                        <td class="p-3">${cust ? `<span class="px-2 py-0.5 rounded ${cust.badge}">${cust.txt}</span>` : '-'}</td>
+                    </tr>
+                `;
+            }).join("");
+
+            document.getElementById("tablaMatrizAlertas").innerHTML = htmlMatriz || '<tr><td colspan="9" class="p-4 text-center text-slate-400">No hay equipos registrados</td></tr>';
+            document.getElementById("dashAlertasCriticas").textContent = countCrit;
+            document.getElementById("dashAlertasWarn").textContent = countWarn;
+
+            // Renderizar Gráficos Chart.js
+            renderGraficos();
+
+            // 4. RENDERIZAR HISTÓRICO DE HORÓMETROS / JORNADAS
+            const filtroEquipoId = selectHorometroFiltro.value;
+            let histHorometros = db.horometrosHistorico.slice().reverse();
+            if (filtroEquipoId) {
+                histHorometros = histHorometros.filter(h => h.unidadId === filtroEquipoId);
+            }
+
+            document.getElementById("tablaHistoricoHorometros").innerHTML = histHorometros.map(h => `
+                <tr class="hover:bg-slate-50">
+                    <td class="p-3 font-mono font-bold text-slate-700">${h.fecha}</td>
+                    <td class="p-3 font-black text-slate-900">${h.codigo}</td>
+                    <td class="p-3 font-medium">${h.valorIni} ${h.tipoMedida === "Horometro"?"Hrs":"Km"}</td>
+                    <td class="p-3 font-bold text-emerald-600">${h.valorFin} ${h.tipoMedida === "Horometro"?"Hrs":"Km"}</td>
+                    <td class="p-3 font-black text-amber-600">+${h.trabajado} ${h.tipoMedida === "Horometro"?"Hrs":"Km"}</td>
+                    <td class="p-3">${h.opNombre}</td>
+                    <td class="p-3 text-slate-500 italic max-w-xs truncate">${h.notas || '-'}</td>
+                    <td class="p-3 text-center">
+                        ${isAdmin ? `<button type="button" data-del-horometro="${h.id}" class="text-red-500 hover:text-red-700 font-bold px-2 py-1 bg-red-50 rounded-lg text-[10px]"><i class="fa-solid fa-trash mr-1"></i>Eliminar</button>` : '<span class="text-slate-300 text-[10px]">Lectura Fija</span>'}
+                    </td>
+                </tr>
+            `).join("") || '<tr><td colspan="8" class="p-4 text-center text-slate-400">Sin registros de horómetros históricos</td></tr>';
+
+            // 5. RENDERIZAR COMBUSTIBLE & MANTENIMIENTOS
+            document.getElementById("lblSumGalones").textContent = `${totalGalones.toFixed(2)} Gal`;
+            document.getElementById("lblSumCostoComb").textContent = `S/ ${totalCostoComb.toLocaleString("es-PE", { minimumFractionDigits: 2 })}`;
+            document.getElementById("lblCountMtos").textContent = `${db.mantenimientosHistorico.length} Registros`;
+
+            document.getElementById("tablaHistoricoCombustible").innerHTML = db.combustibleHistorico.slice().reverse().map(c => `
+                <tr class="hover:bg-slate-50">
+                    <td class="p-2 font-mono">${c.fecha}</td>
+                    <td class="p-2 font-bold">${c.codigo}</td>
+                    <td class="p-2 text-blue-600 font-black">${c.galones} Gal</td>
+                    <td class="p-2 font-semibold">S/ ${c.costo.toFixed(2)}</td>
+                    <td class="p-2">${c.horometro}</td>
+                    <td class="p-2 text-center">
+                        ${isAdmin ? `<button type="button" data-del-comb="${c.id}" class="text-red-500 hover:text-red-700 text-xs"><i class="fa-solid fa-trash"></i></button>` : '-'}
+                    </td>
+                </tr>
+            `).join("") || '<tr><td colspan="6" class="p-3 text-center text-slate-400">Sin cargas registradas</td></tr>';
+
+            document.getElementById("tablaHistoricoMantenimientos").innerHTML = db.mantenimientosHistorico.slice().reverse().map(m => `
+                <tr class="hover:bg-slate-50">
+                    <td class="p-2 font-mono">${m.fecha}</td>
+                    <td class="p-2 font-bold">${m.codigo}</td>
+                    <td class="p-2"><span class="px-1.5 py-0.5 rounded text-[9px] font-bold ${m.tipo === "Preventivo"?"bg-blue-100 text-blue-800":"bg-amber-100 text-amber-800"}">${m.tipo}</span></td>
+                    <td class="p-2 font-bold">${m.horometro}</td>
+                    <td class="p-2 max-w-xs truncate text-slate-600">${m.detalle || '-'}</td>
+                    <td class="p-2 text-center">
+                        ${isAdmin ? `<button type="button" data-del-mto="${m.id}" class="text-red-500 hover:text-red-700 text-xs"><i class="fa-solid fa-trash"></i></button>` : '-'}
+                    </td>
+                </tr>
+            `).join("") || '<tr><td colspan="6" class="p-3 text-center text-slate-400">Sin mantenimientos registrados</td></tr>';
+
+            // 6. RENDERIZAR OBSERVACIONES
+            const obsVisibles = sesion.rol === "operador"
+                ? db.observaciones.filter(o => {
+                    const u = db.unidades.find(x => x.id === o.unidadId);
                     return u && u.codigo === sesion.codigoAcceso;
                 })
                 : db.observaciones;
 
-            document.getElementById("listaObservaciones").innerHTML = obsVisibles.slice().reverse().map(function(o) {
-                var u = db.unidades.find(function(x) { return x.id === o.unidadId; });
-                var badgeC = "bg-blue-100 text-blue-800";
-                if (o.estado === "En Proceso") badgeC = "bg-amber-100 text-amber-800";
-                if (o.estado === "Completo")   badgeC = "bg-emerald-100 text-emerald-800";
+            document.getElementById("cantObs").textContent = obsVisibles.length;
 
-                return [
-                    '<div class="text-xs bg-gray-50 border p-2.5 rounded-lg flex justify-between gap-3">',
-                    '  <div class="space-y-1">',
-                    '    <div class="flex items-center gap-2">',
-                    '      <span class="bg-gray-900 text-white text-[9px] px-1 rounded font-mono font-bold">' + (u ? u.codigo : "Removido") + '</span>',
-                    '      <span class="text-[9px] text-gray-400 font-bold">' + o.fecha + '</span>',
-                    '      <span class="text-[9px] font-black uppercase px-1 rounded ' + badgeC + '">' + o.estado + '</span>',
-                    '    </div>',
-                    '    <p class="text-gray-700 font-medium leading-tight">' + o.detalle + '</p>',
-                    '    <div class="flex gap-2 text-[9px] font-bold pt-1">',
-                    '      <button type="button" data-foto-obs="' + o.id + '" class="text-industrial-600"><i class="fa-solid fa-camera"></i> Subir Foto</button>',
-                    sesion.rol === "admin" ? [
-                        '<button type="button" data-obs-estado="' + o.id + '" data-obs-val="Inicio"     class="text-blue-600">Inicio</button>',
-                        '<button type="button" data-obs-estado="' + o.id + '" data-obs-val="En Proceso" class="text-amber-600">Proceso</button>',
-                        '<button type="button" data-obs-estado="' + o.id + '" data-obs-val="Completo"   class="text-emerald-600">Completo</button>'
-                    ].join("") : "",
-                    '    </div>',
-                    '  </div>',
-                    o.foto ? '<img src="' + o.foto + '" class="w-12 h-12 object-cover border rounded bg-white flex-shrink-0" alt="Foto obs.">' : '',
-                    '</div>'
-                ].join("");
-            }).join("");
+            document.getElementById("listaObservaciones").innerHTML = obsVisibles.slice().reverse().map(o => {
+                const u = db.unidades.find(x => x.id === o.unidadId);
+                let badgeC = "bg-blue-100 text-blue-800 border-blue-200";
+                if (o.estado === "En Proceso") badgeC = "bg-amber-100 text-amber-800 border-amber-200";
+                if (o.estado === "Completo")   badgeC = "bg-emerald-100 text-emerald-800 border-emerald-200";
+
+                return `
+                    <div class="text-xs bg-slate-50 border border-slate-200 p-3 rounded-2xl flex justify-between gap-3 items-center hover:bg-white hover:shadow-sm transition-all">
+                        <div class="space-y-1 flex-1">
+                            <div class="flex items-center gap-2">
+                                <span class="bg-slate-950 text-amber-400 text-[10px] px-2 py-0.5 rounded-md font-mono font-bold">${u ? u.codigo : "Removido"}</span>
+                                <span class="text-[10px] text-slate-400 font-bold">${o.fecha}</span>
+                                <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full border ${badgeC}">${o.estado}</span>
+                            </div>
+                            <p class="text-slate-800 font-medium leading-relaxed">${o.detalle}</p>
+                            ${isAdmin ? `
+                                <div class="flex gap-2 text-[10px] font-bold pt-1.5 border-t">
+                                    <span class="text-slate-400">Estado:</span>
+                                    <button type="button" data-obs-estado="${o.id}" data-obs-val="Inicio" class="text-blue-600 hover:underline">Inicio</button>
+                                    <button type="button" data-obs-estado="${o.id}" data-obs-val="En Proceso" class="text-amber-600 hover:underline">En Proceso</button>
+                                    <button type="button" data-obs-estado="${o.id}" data-obs-val="Completo" class="text-emerald-600 hover:underline">Completo</button>
+                                    <button type="button" data-del-obs="${o.id}" class="text-red-500 hover:text-red-700 ml-auto"><i class="fa-solid fa-trash mr-1"></i>Eliminar</button>
+                                </div>
+                            ` : ''}
+                        </div>
+                        ${o.foto ? `
+                            <div class="w-16 h-16 rounded-xl border relative overflow-hidden flex-shrink-0 cursor-pointer group" onclick="zoomFoto('${o.foto}')">
+                                <img src="${o.foto}" class="w-full h-full object-cover" alt="Foto obs">
+                                <div class="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 text-white text-[8px] flex items-center justify-center font-bold text-center p-1">VER FOTO</div>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join("") || '<p class="text-center text-slate-400 py-6 text-xs font-medium">No se han registrado observaciones técnicas.</p>';
         }
 
-        function compartirApp() {
-            var url = window.location.href;
-            if (navigator.clipboard && window.isSecureContext) {
-                navigator.clipboard.writeText(url)
-                    .then(function() { showToast("Enlace copiado!", "fa-check-circle", 2500); })
-                    .catch(function() { prompt("Copie este enlace:", url); });
-            } else {
-                prompt("Copie este enlace:", url);
-            }
+        // Gráficos Chart.js
+        function renderGraficos() {
+            const ctxH = document.getElementById("chartHorometros")?.getContext("2d");
+            const ctxC = document.getElementById("chartCombustible")?.getContext("2d");
+            if (!ctxH || !ctxC) return;
+
+            const labels = db.unidades.map(u => u.codigo);
+            const dataHoras = db.unidades.map(u => u.valorActual || 0);
+
+            const dataComb = db.unidades.map(u => {
+                const cargas = db.combustibleHistorico.filter(c => c.unidadId === u.id);
+                return cargas.reduce((acc, x) => acc + (x.galones || 0), 0);
+            });
+
+            if (chartHorometrosObj) chartHorometrosObj.destroy();
+            chartHorometrosObj = new Chart(ctxH, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Lectura Acumulada (Hrs / Km)',
+                        data: dataHoras,
+                        backgroundColor: '#f59e0b',
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+
+            if (chartCombustibleObj) chartCombustibleObj.destroy();
+            chartCombustibleObj = new Chart(ctxC, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Galones Cargados',
+                        data: dataComb,
+                        borderColor: '#2563eb',
+                        backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
         }
 
-        document.body.addEventListener("click", function(e) {
-            var t;
-            t = e.target.closest("[data-toggle-op]");
-            if (t) { toggleEstadoOp(t.dataset.toggleOp); return; }
-            t = e.target.closest("[data-jornada]");
-            if (t) { registrarJornadaDiaria(t.dataset.jornada); return; }
-            t = e.target.closest("[data-toggle-unidad]");
-            if (t) { toggleEstadoUnidad(t.dataset.toggleUnidad); return; }
-            t = e.target.closest("[data-foto-unidad]");
-            if (t) { subirFoto(t.dataset.fotoUnidad, "unidad"); return; }
-            t = e.target.closest("[data-foto-obs]");
-            if (t) { subirFoto(t.dataset.fotoObs, "observacion"); return; }
-            t = e.target.closest("[data-obs-estado]");
-            if (t) { cambiarEstadoObs(t.dataset.obsEstado, t.dataset.obsVal); return; }
-        });
-
+        // Eventos DOM & Listeners
         document.getElementById("btnIngresar").addEventListener("click", validarAcceso);
-        document.getElementById("accessCodeInput").addEventListener("keydown", function(e) {
-            if (e.key === "Enter") validarAcceso();
-        });
+        document.getElementById("accessCodeInput").addEventListener("keydown", e => { if (e.key === "Enter") validarAcceso(); });
         document.getElementById("btnCerrarSesion").addEventListener("click", cerrarSesion);
-        document.getElementById("btnCompartir").addEventListener("click", compartirApp);
         document.getElementById("btnLogo").addEventListener("click", subirLogo);
         document.getElementById("btnLogoTitle").addEventListener("click", subirLogo);
+        document.getElementById("btnImprimir").addEventListener("click", () => window.print());
 
         document.getElementById("formOperador").addEventListener("submit", agregarOperador);
-        document.getElementById("formUnidad").addEventListener("submit", agregarUnidad);
-        document.getElementById("formObservacion").addEventListener("submit", agregarObservacion);
+        document.getElementById("formUnidad").addEventListener("submit", guardarUnidad);
+        document.getElementById("btnCancelarEditUnidad").addEventListener("click", resetFormUnidad);
+        document.getElementById("formJornadaModal").addEventListener("submit", guardarJornadaModal);
+        document.getElementById("btnCerrarModalJornada").addEventListener("click", cerrarModalJornada);
 
-        document.getElementById("btnFiltroTodos").addEventListener("click",    function() { setFiltro("Todos"); });
-        document.getElementById("btnFiltroAmarilla").addEventListener("click", function() { setFiltro("Amarilla"); });
-        document.getElementById("btnFiltroBlanca").addEventListener("click",   function() { setFiltro("Blanca"); });
-        document.getElementById("buscadorInput").addEventListener("input",     renderTodo);
+        document.getElementById("formCombustible").addEventListener("submit", agregarCombustible);
+        document.getElementById("formMantenimiento").addEventListener("submit", agregarMantenimiento);
+        document.getElementById("formObservacion").addEventListener("submit", agregarObservacion);
+        document.getElementById("btnCerrarModalFoto").addEventListener("click", () => document.getElementById("modalFotoZoom").classList.add("hidden"));
+
+        // File pickers compresión celular
+        document.getElementById("unidadFotoFile").addEventListener("change", async e => {
+            const file = e.target.files[0];
+            if (file) {
+                showToast("Procesando imagen...", "fa-image");
+                try {
+                    const base64 = await compressImage(file, 800, 0.7);
+                    document.getElementById("unidadFotoBase64").value = base64;
+                    document.getElementById("imgPreviewUnidad").src = base64;
+                    document.getElementById("previewUnidadFoto").classList.remove("hidden");
+                    hideToast();
+                } catch(err) {
+                    console.error("Error al procesar imagen:", err);
+                    alert("No se pudo procesar la imagen seleccionada.");
+                }
+            }
+        });
+
+        document.getElementById("obsFotoFile").addEventListener("change", async e => {
+            const file = e.target.files[0];
+            if (file) {
+                showToast("Procesando evidencia...", "fa-image");
+                try {
+                    const base64 = await compressImage(file, 800, 0.7);
+                    document.getElementById("obsFotoBase64").value = base64;
+                    document.getElementById("imgPreviewObs").src = base64;
+                    document.getElementById("previewObsFoto").classList.remove("hidden");
+                    hideToast();
+                } catch(err) {
+                    console.error("Error al procesar imagen:", err);
+                    alert("No se pudo procesar la imagen seleccionada.");
+                }
+            }
+        });
+
+        // Cambio de Pestañas
+        document.querySelectorAll(".tab-btn").forEach(btn => {
+            btn.addEventListener("click", () => {
+                document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+                document.querySelectorAll(".tab-content").forEach(c => c.classList.add("hidden"));
+                btn.classList.add("active");
+                document.getElementById(btn.dataset.tab).classList.remove("hidden");
+            });
+        });
+
+        // Filtros grilla
+        document.getElementById("btnFiltroTodos").addEventListener("click", () => setFiltro("Todos"));
+        document.getElementById("btnFiltroAmarilla").addEventListener("click", () => setFiltro("Amarilla"));
+        document.getElementById("btnFiltroBlanca").addEventListener("click", () => setFiltro("Blanca"));
+        document.getElementById("buscadorInput").addEventListener("input", renderTodo);
+        document.getElementById("filtroEquipoHorometro").addEventListener("change", renderTodo);
+
+        function setFiltro(f) {
+            filtroActual = f;
+            ["Todos","Amarilla","Blanca"].forEach(name => {
+                const btn = document.getElementById("btnFiltro" + name);
+                if (btn) {
+                    btn.className = (name === f)
+                        ? "px-3.5 py-1.5 text-xs font-bold rounded-xl bg-amber-500 text-slate-950"
+                        : "px-3.5 py-1.5 text-xs font-bold rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200";
+                }
+            });
+            renderTodo();
+        }
+
+        // Delegación de eventos dinámicos
+        document.body.addEventListener("click", e => {
+            let t;
+            if (t = e.target.closest("[data-toggle-op]"))    toggleEstadoOp(t.dataset.toggleOp);
+            if (t = e.target.closest("[data-del-op]"))       eliminarOperador(t.dataset.delOp);
+            if (t = e.target.closest("[data-edit-unidad]"))  editarUnidad(t.dataset.editUnidad);
+            if (t = e.target.closest("[data-toggle-unidad]"))toggleEstadoUnidad(t.dataset.toggleUnidad);
+            if (t = e.target.closest("[data-del-unidad]"))   eliminarUnidad(t.dataset.delUnidad);
+            if (t = e.target.closest("[data-jornada]"))      abrirModalJornada(t.dataset.jornada);
+            if (t = e.target.closest("[data-del-horometro]"))eliminarHistoricoHorometro(t.dataset.delHorometro);
+            if (t = e.target.closest("[data-del-comb]"))     eliminarCombustible(t.dataset.delComb);
+            if (t = e.target.closest("[data-del-mto]"))      eliminarMantenimiento(t.dataset.delMto);
+            if (t = e.target.closest("[data-obs-estado]"))  cambiarEstadoObs(t.dataset.obsEstado, t.dataset.obsVal);
+            if (t = e.target.closest("[data-del-obs]"))      eliminarObservacion(t.dataset.delObs);
+        });
+
+        // Inicialización
+        cargarBD();
 
     </script>
 </body>
